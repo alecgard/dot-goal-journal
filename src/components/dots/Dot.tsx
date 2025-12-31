@@ -26,6 +26,10 @@ interface DotProps {
   onLongPress: () => void;
   /** Called on single tap to complete (only if not already complete) */
   onComplete: () => void;
+  /** Called when hold begins (for modal slide-in animation) */
+  onHoldStart?: () => void;
+  /** Called when hold is cancelled before threshold (modal should slide back out) */
+  onHoldCancel?: () => void;
   shouldAnimate?: boolean;
   /** Index of this dot in the grid */
   index?: number;
@@ -71,6 +75,8 @@ export const Dot = memo(function Dot({
   goalColor,
   onLongPress,
   onComplete,
+  onHoldStart,
+  onHoldCancel,
   shouldAnimate,
   index,
   numColumns,
@@ -158,25 +164,32 @@ export const Dot = memo(function Dot({
     glowOpacity.value = 1;
     glowOpacity.value = withTiming(0, { duration: ANIMATION.celebration * 1.2 });
 
-    // More dramatic scale bounce - bigger pop with overshoot
+    // Subtle scale bounce - quick pop with minimal overshoot
     scale.value = withSequence(
-      withSpring(1.8, { damping: 3, stiffness: 400 }),
-      withSpring(0.9, { damping: 8, stiffness: 300 }),
-      withSpring(1.15, { damping: 10, stiffness: 200 }),
-      withSpring(1, { damping: 12, stiffness: 180 })
+      withSpring(1.3, { damping: 12, stiffness: 400 }),
+      withSpring(1, { damping: 15, stiffness: 300 })
     );
 
     // Haptic on JS thread
     runOnJS(completionHaptic)();
   }, [scale, rippleScale, rippleOpacity, glowOpacity]);
 
+  // Track if long press succeeded (reached threshold)
+  const longPressSucceeded = useSharedValue(false);
+
   // Long press opens the modal (for notes, uncompleting, etc.)
   const longPressGesture = Gesture.LongPress()
     .minDuration(300)
     .onBegin(() => {
+      longPressSucceeded.value = false;
       handleLongPressStart();
+      // Notify parent that hold is starting (for modal slide-in)
+      if (!isFuture && onHoldStart) {
+        runOnJS(onHoldStart)();
+      }
     })
     .onEnd(() => {
+      longPressSucceeded.value = true;
       // Reset scale immediately before opening modal
       scale.value = withSpring(1, { damping: 15, stiffness: 300 });
       if (!isFuture) {
@@ -186,16 +199,27 @@ export const Dot = memo(function Dot({
     .onFinalize(() => {
       // Always reset scale when gesture ends
       scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+      // If long press didn't succeed (released too early), notify parent to cancel
+      if (!longPressSucceeded.value && !isFuture && onHoldCancel) {
+        runOnJS(onHoldCancel)();
+      }
     });
 
   // Single tap completes the dot (only if not already complete and not future)
+  // If already completed, single tap opens the modal instead
   const tapGesture = Gesture.Tap().onEnd(() => {
-    if (!isFuture && !isCompleted) {
-      triggerCelebration();
-      runOnJS(onComplete)();
-      // Trigger ripple effect to neighboring dots
-      if (onTriggerRipple) {
-        runOnJS(onTriggerRipple)();
+    if (!isFuture) {
+      if (isCompleted) {
+        // Already completed - open modal to view notes or uncomplete
+        runOnJS(onLongPress)();
+      } else {
+        // Not completed - complete it
+        triggerCelebration();
+        runOnJS(onComplete)();
+        // Trigger ripple effect to neighboring dots
+        if (onTriggerRipple) {
+          runOnJS(onTriggerRipple)();
+        }
       }
     }
   });

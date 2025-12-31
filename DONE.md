@@ -10,3 +10,6 @@
 - Allow for single clicking dots to complete, long click to open modal.
 - Make complete animation more visible.
 - In % element, show number of days remaining.
+- Allow single clicking on completed days to open modal.
+- Make complete animation less bouncy.
+- Make modal slide in while the dot is being held for long click.
