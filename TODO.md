@@ -1,0 +1,3 @@
+- Fix dots after the first ~100 rendering in late 
+- use the same % stat on Goal view as we use on the Home view 
+- show last day in gold 
