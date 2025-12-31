@@ -7,11 +7,13 @@ import { ArchivedGoalCard } from './ArchivedGoalCard';
 interface ArchivedSectionProps {
   goals: Goal[];
   onGoalPress: (goalId: string) => void;
+  onDeleteGoal: (goalId: string) => void;
 }
 
 export const ArchivedSection = memo(function ArchivedSection({
   goals,
   onGoalPress,
+  onDeleteGoal,
 }: ArchivedSectionProps) {
   const [expanded, setExpanded] = useState(false);
   const [headerPressed, setHeaderPressed] = useState(false);
@@ -39,6 +41,7 @@ export const ArchivedSection = memo(function ArchivedSection({
               key={goal.id}
               goal={goal}
               onPress={() => onGoalPress(goal.id)}
+              onDelete={onDeleteGoal}
             />
           ))}
         </View>

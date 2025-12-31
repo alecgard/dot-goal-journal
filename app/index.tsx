@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useGoalStore, useUIStore } from '../src/stores';
+import { useGoalStore, useDayStore, useUIStore } from '../src/stores';
 import { Goal } from '../src/types';
 import { COLORS, SPACING, FONT_SIZE, FONTS } from '../src/constants/theme';
 import { GoalCard } from '../src/components/goal/GoalCard';
@@ -47,6 +47,11 @@ export default function HomeScreen() {
     router.push('/create');
   }, []);
 
+  const handleDeleteGoal = useCallback((goalId: string) => {
+    useDayStore.getState().clearGoalDays(goalId);
+    useGoalStore.getState().deleteGoal(goalId);
+  }, []);
+
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<Goal>) => {
       return (
@@ -81,11 +86,12 @@ export default function HomeScreen() {
           <ArchivedSection
             goals={archivedGoals}
             onGoalPress={handleGoalPress}
+            onDeleteGoal={handleDeleteGoal}
           />
         )}
       </View>
     );
-  }, [archivedGoals, handleAddGoal, handleGoalPress]);
+  }, [archivedGoals, handleAddGoal, handleGoalPress, handleDeleteGoal]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>

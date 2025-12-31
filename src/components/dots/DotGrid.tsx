@@ -18,6 +18,7 @@ interface DotData {
   isCompleted: boolean;
   isToday: boolean;
   isFuture: boolean;
+  isLastDay: boolean;
   index: number;
 }
 
@@ -42,6 +43,7 @@ export const DotGrid = memo(function DotGrid({
   // Generate dot data
   const dots: DotData[] = useMemo(() => {
     const dateRange = getDateRange(goal.startDate, goal.endDate);
+    const lastIndex = dateRange.length - 1;
 
     return dateRange.map((date, index) => {
       const key = `${goal.id}_${date}`;
@@ -52,6 +54,7 @@ export const DotGrid = memo(function DotGrid({
         isCompleted: entry?.isCompleted ?? false,
         isToday: isToday(date),
         isFuture: isFuture(date),
+        isLastDay: index === lastIndex,
         index,
       };
     });
@@ -94,6 +97,7 @@ export const DotGrid = memo(function DotGrid({
         isCompleted={item.isCompleted}
         isToday={item.isToday}
         isFuture={item.isFuture}
+        isLastDay={item.isLastDay}
         goalColor={COLORS.dotCompleted}
         onPress={() => onDotPress(item.date)}
         onLongPress={() => onDotLongPress(item.date)}

@@ -20,6 +20,7 @@ interface DotProps {
   isCompleted: boolean;
   isToday: boolean;
   isFuture: boolean;
+  isLastDay?: boolean;
   goalColor: string;
   onLongPress: () => void;
   onPress: () => void;
@@ -64,6 +65,7 @@ export const Dot = memo(function Dot({
   isCompleted,
   isToday,
   isFuture,
+  isLastDay,
   goalColor,
   onLongPress,
   onPress,
@@ -78,23 +80,34 @@ export const Dot = memo(function Dot({
   const rippleScale = useSharedValue(0);
   const rippleOpacity = useSharedValue(0);
 
+  // Determine the display color - last day is always gold
+  const displayColor = isLastDay ? COLORS.neon.amber : goalColor;
+
+  // Only set up ripple reaction when we have all required props
+  const hasRippleProps = rippleTriggerIndex !== undefined &&
+                         rippleTriggerTime !== undefined &&
+                         index !== undefined &&
+                         numColumns !== undefined;
+
   // React to ripple triggers from other dots
   useAnimatedReaction(
-    () => rippleTriggerTime?.value ?? 0,
+    () => {
+      // Return 0 if we don't have ripple props to skip processing
+      if (!hasRippleProps) return 0;
+      return rippleTriggerTime?.value ?? 0;
+    },
     (currentTime, previousTime) => {
       if (
         currentTime !== previousTime &&
         currentTime > 0 &&
-        rippleTriggerIndex !== undefined &&
-        index !== undefined &&
-        numColumns !== undefined
+        hasRippleProps
       ) {
-        const triggerIndex = rippleTriggerIndex.value;
+        const triggerIndex = rippleTriggerIndex!.value;
 
         // Don't animate the source dot (it has its own animation)
         if (triggerIndex === index) return;
 
-        const distance = calculateDistance(index, triggerIndex, numColumns);
+        const distance = calculateDistance(index!, triggerIndex, numColumns!);
 
         // Only animate immediate neighbor dots (horizontally, vertically, and diagonally adjacent)
         // Diagonal neighbors have distance sqrt(2) ≈ 1.414, so use 1.5 as threshold
@@ -117,7 +130,7 @@ export const Dot = memo(function Dot({
         }
       }
     },
-    [index, numColumns]
+    [hasRippleProps, index, numColumns]
   );
 
   const handleLongPressStart = useCallback(() => {
@@ -185,8 +198,12 @@ export const Dot = memo(function Dot({
 
   // Determine dot appearance based on state
   const getDotStyle = () => {
+    // Last day always shows in gold, regardless of state
+    if (isLastDay) {
+      return [styles.dot, styles.dotCompleted, { backgroundColor: displayColor }];
+    }
     if (isCompleted) {
-      return [styles.dot, styles.dotCompleted, { backgroundColor: goalColor }];
+      return [styles.dot, styles.dotCompleted, { backgroundColor: displayColor }];
     }
     if (isFuture) {
       return [styles.dot, styles.dotFuture];
@@ -201,7 +218,7 @@ export const Dot = memo(function Dot({
         <Animated.View
           style={[
             styles.ripple,
-            { backgroundColor: goalColor },
+            { backgroundColor: displayColor },
             animatedRippleStyle,
           ]}
         />

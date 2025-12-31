@@ -112,9 +112,9 @@ export const useGoalStore = create<GoalStore>()(
       },
 
       deleteGoal: (id) => {
-        // Note: Per spec, we only archive, never truly delete
-        // This is here for edge cases but should use archiveGoal instead
-        get().archiveGoal(id);
+        set((state) => ({
+          goals: state.goals.filter((goal) => goal.id !== id),
+        }));
       },
 
       getActiveGoals: () => {

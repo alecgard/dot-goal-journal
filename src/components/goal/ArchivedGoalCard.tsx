@@ -1,5 +1,6 @@
 import React, { memo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Goal } from '../../types';
 import { COLORS, SPACING, FONT_SIZE, FONTS, RADIUS } from '../../constants/theme';
 import { useStats } from '../../hooks/useStats';
@@ -7,14 +8,32 @@ import { useStats } from '../../hooks/useStats';
 interface ArchivedGoalCardProps {
   goal: Goal;
   onPress: () => void;
+  onDelete: (goalId: string) => void;
 }
 
 export const ArchivedGoalCard = memo(function ArchivedGoalCard({
   goal,
   onPress,
+  onDelete,
 }: ArchivedGoalCardProps) {
   const { percentage } = useStats(goal);
   const [isPressed, setIsPressed] = useState(false);
+  const [deletePressed, setDeletePressed] = useState(false);
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Goal',
+      `Are you sure you want to permanently delete "${goal.name}"? This will remove all associated data and cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => onDelete(goal.id),
+        },
+      ]
+    );
+  };
 
   return (
     <Pressable
@@ -35,6 +54,15 @@ export const ArchivedGoalCard = memo(function ArchivedGoalCard({
           <Text style={styles.badgeText}>Done</Text>
         </View>
       )}
+      <Pressable
+        onPress={handleDelete}
+        onPressIn={() => setDeletePressed(true)}
+        onPressOut={() => setDeletePressed(false)}
+        style={[styles.deleteButton, deletePressed && styles.deleteButtonPressed]}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Ionicons name="trash-outline" size={18} color={COLORS.textSecondary} />
+      </Pressable>
     </Pressable>
   );
 });
@@ -98,5 +126,26 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: SPACING.xs,
+    borderWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.5)',
+    borderBottomColor: 'rgba(163, 177, 198, 0.25)',
+    borderRightColor: 'rgba(163, 177, 198, 0.25)',
+  },
+  deleteButtonPressed: {
+    borderTopColor: 'rgba(163, 177, 198, 0.25)',
+    borderLeftColor: 'rgba(163, 177, 198, 0.25)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.5)',
+    borderRightColor: 'rgba(255, 255, 255, 0.5)',
+    transform: [{ scale: 0.95 }],
   },
 });
