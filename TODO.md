@@ -1,0 +1,7 @@
+- When completing a dot from the Goal view, have the surrounding dots ripple as part of the animation.
+- When marking a dot as complete from the modal, close the modal. 
+- Replace 'Settings' button on Goal view with a pencil icon.
+- Rplace `<` button on Goal view with a Home icon.
+- In modal, add % in brackets after 'Day X of Y'
+- Show dates in forms in '12-Dec-2025' format
+- Remove the `+` button from the Home view
