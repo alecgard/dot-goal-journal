@@ -1,3 +1,4 @@
+- Don't allow custom colours per goal - we should be opinionated and choose a single colour to be used. 
 - When completing a dot from the Goal view, have the surrounding dots ripple as part of the animation.
 - When marking a dot as complete from the modal, close the modal. 
 - Replace 'Settings' button on Goal view with a pencil icon.

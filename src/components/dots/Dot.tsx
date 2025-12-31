@@ -1,5 +1,5 @@
 import React, { memo, useCallback } from 'react';
-import { StyleSheet, Pressable } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -10,7 +10,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { COLORS, DOT, ANIMATION } from '../../constants/theme';
-import { DotState } from '../../types';
 import { completionHaptic } from '../../services/haptics';
 
 interface DotProps {
@@ -24,6 +23,15 @@ interface DotProps {
   shouldAnimate?: boolean;
 }
 
+/**
+ * Dot - Neumorphic dot element
+ *
+ * States:
+ * - Completed: Extruded with goal color, raised from surface
+ * - Future: Subtle inset, appears carved into surface
+ * - Missed: Flat grey, minimal presence
+ * - Today: Orange accent ring
+ */
 export const Dot = memo(function Dot({
   date,
   isCompleted,
@@ -38,16 +46,9 @@ export const Dot = memo(function Dot({
   const rippleScale = useSharedValue(0);
   const rippleOpacity = useSharedValue(0);
 
-  // Determine dot color based on state
-  const dotColor = isCompleted
-    ? goalColor
-    : isFuture
-    ? COLORS.dotFuture
-    : COLORS.dotMissed;
-
   const handleLongPressStart = useCallback(() => {
     'worklet';
-    scale.value = withSpring(0.9);
+    scale.value = withSpring(0.85);
   }, [scale]);
 
   const handleLongPressEnd = useCallback(() => {
@@ -59,13 +60,13 @@ export const Dot = memo(function Dot({
     'worklet';
     // Ripple animation
     rippleScale.value = 0;
-    rippleOpacity.value = 0.8;
-    rippleScale.value = withTiming(2, { duration: ANIMATION.celebration });
+    rippleOpacity.value = 0.6;
+    rippleScale.value = withTiming(2.5, { duration: ANIMATION.celebration });
     rippleOpacity.value = withTiming(0, { duration: ANIMATION.celebration });
 
     // Scale bounce
     scale.value = withSequence(
-      withSpring(1.3, { damping: 4 }),
+      withSpring(1.4, { damping: 4 }),
       withSpring(1, { damping: 10 })
     );
 
@@ -104,6 +105,17 @@ export const Dot = memo(function Dot({
     opacity: rippleOpacity.value,
   }));
 
+  // Determine dot appearance based on state
+  const getDotStyle = () => {
+    if (isCompleted) {
+      return [styles.dot, styles.dotCompleted, { backgroundColor: goalColor }];
+    }
+    if (isFuture) {
+      return [styles.dot, styles.dotFuture];
+    }
+    return [styles.dot, styles.dotMissed];
+  };
+
   return (
     <GestureDetector gesture={composedGesture}>
       <Animated.View style={[styles.container, animatedDotStyle]}>
@@ -116,14 +128,13 @@ export const Dot = memo(function Dot({
           ]}
         />
 
+        {/* Today indicator ring */}
+        {isToday && (
+          <View style={styles.todayRing} />
+        )}
+
         {/* Main dot */}
-        <Animated.View
-          style={[
-            styles.dot,
-            { backgroundColor: dotColor },
-            isToday && styles.today,
-          ]}
-        />
+        <Animated.View style={getDotStyle()} />
       </Animated.View>
     </GestureDetector>
   );
@@ -141,7 +152,35 @@ const styles = StyleSheet.create({
     height: DOT.size,
     borderRadius: DOT.size / 2,
   },
-  today: {
+  // Completed: Extruded appearance with subtle shadow effect
+  dotCompleted: {
+    // Shadow simulation for raised effect
+    shadowColor: 'rgba(163, 177, 198, 0.8)',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  // Future: Inset appearance
+  dotFuture: {
+    backgroundColor: COLORS.dotFuture,
+    // Inset simulation via border
+    borderWidth: 1,
+    borderTopColor: 'rgba(163, 177, 198, 0.4)',
+    borderLeftColor: 'rgba(163, 177, 198, 0.4)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.6)',
+    borderRightColor: 'rgba(255, 255, 255, 0.6)',
+  },
+  // Missed: Flat, muted
+  dotMissed: {
+    backgroundColor: COLORS.dotMissed,
+  },
+  // Today ring
+  todayRing: {
+    position: 'absolute',
+    width: DOT.size + DOT.borderWidth * 2 + 4,
+    height: DOT.size + DOT.borderWidth * 2 + 4,
+    borderRadius: (DOT.size + DOT.borderWidth * 2 + 4) / 2,
     borderWidth: DOT.borderWidth,
     borderColor: COLORS.dotToday,
   },

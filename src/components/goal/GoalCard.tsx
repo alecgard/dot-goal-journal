@@ -1,7 +1,7 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Goal } from '../../types';
-import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, FONTS, RADIUS } from '../../constants/theme';
 import { MiniDotPreview } from './MiniDotPreview';
 import { useStats } from '../../hooks/useStats';
 
@@ -12,6 +12,14 @@ interface GoalCardProps {
   isActive?: boolean;
 }
 
+/**
+ * GoalCard - Neumorphic goal card
+ *
+ * Features extruded shadow effect with:
+ * - Color accent bar on left
+ * - Mini dot preview
+ * - Stats (percentage + streak)
+ */
 export const GoalCard = memo(function GoalCard({
   goal,
   onPress,
@@ -19,79 +27,135 @@ export const GoalCard = memo(function GoalCard({
   isActive,
 }: GoalCardProps) {
   const { percentage, currentStreak } = useStats(goal);
+  const [isPressed, setIsPressed] = useState(false);
+
+  const handlePressIn = useCallback(() => setIsPressed(true), []);
+  const handlePressOut = useCallback(() => setIsPressed(false), []);
 
   return (
-    <Pressable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      delayLongPress={200}
-      style={[
-        styles.container,
-        { borderLeftColor: goal.color },
-        isActive && styles.active,
-      ]}
-    >
-      <View style={styles.header}>
-        <Text style={styles.name} numberOfLines={1}>
-          {goal.name}
-        </Text>
-        {goal.isCompleted && (
-          <View style={[styles.badge, { backgroundColor: goal.color }]}>
-            <Text style={styles.badgeText}>100%</Text>
+    <View style={styles.wrapper}>
+      <Pressable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        delayLongPress={200}
+        style={[
+          styles.container,
+          isActive && styles.active,
+          isPressed && styles.pressed,
+        ]}
+      >
+        {/* Color accent indicator */}
+        <View style={[styles.accentBar, { backgroundColor: goal.color }]} />
+
+        <View style={styles.content}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.name} numberOfLines={1}>
+              {goal.name}
+            </Text>
+            {goal.isCompleted && (
+              <View style={[styles.badge, { backgroundColor: goal.color }]}>
+                <Text style={styles.badgeText}>Done</Text>
+              </View>
+            )}
           </View>
-        )}
-      </View>
 
-      <MiniDotPreview goal={goal} />
+          {/* Mini dot preview */}
+          <MiniDotPreview goal={goal} />
 
-      <View style={styles.stats}>
-        <Text style={styles.statText}>{percentage}%</Text>
-        {currentStreak > 0 && (
-          <Text style={styles.statText}> • {currentStreak} day streak</Text>
-        )}
-      </View>
-    </Pressable>
+          {/* Stats */}
+          <View style={styles.stats}>
+            <View style={[styles.statPill, { backgroundColor: `${goal.color}20` }]}>
+              <Text style={[styles.statValue, { color: goal.color }]}>
+                {percentage}%
+              </Text>
+            </View>
+            {currentStreak > 0 && (
+              <Text style={styles.streakText}>
+                {currentStreak} day streak
+              </Text>
+            )}
+          </View>
+        </View>
+      </Pressable>
+    </View>
   );
 });
 
 const styles = StyleSheet.create({
+  wrapper: {
+    marginBottom: SPACING.lg,
+  },
   container: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-    borderLeftWidth: 4,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.xxl,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    // Neumorphic shadow
+    shadowColor: COLORS.shadowDark,
+    shadowOffset: { width: 6, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  pressed: {
+    transform: [{ scale: 0.98 }],
   },
   active: {
-    opacity: 0.9,
-    transform: [{ scale: 1.02 }],
+    opacity: 0.95,
+  },
+  accentBar: {
+    width: 6,
+    borderTopLeftRadius: RADIUS.xxl,
+    borderBottomLeftRadius: RADIUS.xxl,
+  },
+  content: {
+    flex: 1,
+    padding: SPACING.lg,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
   },
   name: {
     flex: 1,
+    fontFamily: FONTS.display.semiBold,
     fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
     color: COLORS.textPrimary,
+    letterSpacing: -0.3,
   },
   badge: {
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
   },
   badgeText: {
+    fontFamily: FONTS.body.bold,
     fontSize: FONT_SIZE.xs,
-    fontWeight: '700',
-    color: COLORS.background,
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   stats: {
     flexDirection: 'row',
-    marginTop: SPACING.sm,
+    alignItems: 'center',
+    marginTop: SPACING.md,
+    gap: SPACING.sm,
   },
-  statText: {
+  statPill: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+  },
+  statValue: {
+    fontFamily: FONTS.display.bold,
+    fontSize: FONT_SIZE.sm,
+  },
+  streakText: {
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.sm,
     color: COLORS.textSecondary,
   },

@@ -13,7 +13,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useGoalStore } from '../../../src/stores';
-import { COLORS, SPACING, FONT_SIZE, NEON_COLORS } from '../../../src/constants/theme';
+import { COLORS, SPACING, FONT_SIZE, FONTS, RADIUS, NEON_COLORS } from '../../../src/constants/theme';
 import { NeonColor } from '../../../src/types';
 import { toDateString, fromDateString } from '../../../src/utils/dates';
 
@@ -26,7 +26,7 @@ export default function GoalSettingsScreen() {
   const goal = useMemo(() => goals.find(g => g.id === id), [goals, id]);
 
   const [name, setName] = useState(goal?.name || '');
-  const [color, setColor] = useState<NeonColor>(goal?.color || COLORS.neon.cyan);
+  const [color, setColor] = useState<NeonColor>(goal?.color || COLORS.neon.violet);
   const [startDate, setStartDate] = useState(
     goal ? fromDateString(goal.startDate) : new Date()
   );
@@ -42,6 +42,8 @@ export default function GoalSettingsScreen() {
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [cancelPressed, setCancelPressed] = useState(false);
+  const [savePressed, setSavePressed] = useState(false);
 
   // Track changes
   useEffect(() => {
@@ -117,14 +119,25 @@ export default function GoalSettingsScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={handleCancel} style={styles.headerButton}>
+        <Pressable
+          onPress={handleCancel}
+          onPressIn={() => setCancelPressed(true)}
+          onPressOut={() => setCancelPressed(false)}
+          style={[styles.headerButton, cancelPressed && styles.headerButtonPressed]}
+        >
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
         <Text style={styles.title}>Settings</Text>
         <Pressable
           onPress={handleSave}
+          onPressIn={() => setSavePressed(true)}
+          onPressOut={() => setSavePressed(false)}
           disabled={!canSave}
-          style={styles.headerButton}
+          style={[
+            styles.saveButton,
+            savePressed && styles.saveButtonPressed,
+            !canSave && styles.saveButtonDisabled,
+          ]}
         >
           <Text style={[styles.saveText, !canSave && styles.disabled]}>
             Save
@@ -140,14 +153,16 @@ export default function GoalSettingsScreen() {
         {/* Name Input */}
         <View style={styles.section}>
           <Text style={styles.label}>Goal Name</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Goal name"
-            placeholderTextColor={COLORS.textMuted}
-            maxLength={30}
-          />
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="Goal name"
+              placeholderTextColor={COLORS.textMuted}
+              maxLength={30}
+            />
+          </View>
           <Text style={styles.charCount}>{name.length}/30</Text>
         </View>
 
@@ -189,7 +204,7 @@ export default function GoalSettingsScreen() {
                 setShowStartPicker(Platform.OS === 'ios');
                 if (date) setStartDate(date);
               }}
-              themeVariant="dark"
+              themeVariant="light"
             />
           )}
         </View>
@@ -213,7 +228,7 @@ export default function GoalSettingsScreen() {
                 setShowEndPicker(Platform.OS === 'ios');
                 if (date) setEndDate(date);
               }}
-              themeVariant="dark"
+              themeVariant="light"
             />
           )}
         </View>
@@ -261,7 +276,7 @@ export default function GoalSettingsScreen() {
                 setShowTimePicker(Platform.OS === 'ios');
                 if (date) setNotificationTime(date);
               }}
-              themeVariant="dark"
+              themeVariant="light"
             />
           )}
         </View>
@@ -295,26 +310,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surface,
   },
   headerButton: {
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.6)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.6)',
+    borderBottomColor: 'rgba(163, 177, 198, 0.3)',
+    borderRightColor: 'rgba(163, 177, 198, 0.3)',
+  },
+  headerButtonPressed: {
+    borderTopColor: 'rgba(163, 177, 198, 0.3)',
+    borderLeftColor: 'rgba(163, 177, 198, 0.3)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.6)',
+    borderRightColor: 'rgba(255, 255, 255, 0.6)',
+    transform: [{ scale: 0.98 }],
   },
   cancelText: {
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.md,
     color: COLORS.textSecondary,
   },
   title: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
+    fontFamily: FONTS.display.bold,
+    fontSize: FONT_SIZE.xl,
     color: COLORS.textPrimary,
+    letterSpacing: -0.5,
+  },
+  saveButton: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.accent,
+    shadowColor: 'rgba(108, 99, 255, 0.4)',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  saveButtonPressed: {
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 3,
+    transform: [{ scale: 0.98 }],
+  },
+  saveButtonDisabled: {
+    backgroundColor: COLORS.background,
+    shadowColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(163, 177, 198, 0.3)',
   },
   saveText: {
+    fontFamily: FONTS.body.bold,
     fontSize: FONT_SIZE.md,
-    fontWeight: '600',
-    color: COLORS.neon.cyan,
+    color: '#FFFFFF',
   },
   disabled: {
     color: COLORS.textMuted,
@@ -329,20 +380,30 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   label: {
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.sm,
     color: COLORS.textSecondary,
     marginBottom: SPACING.sm,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
+  inputContainer: {
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderTopColor: 'rgba(163, 177, 198, 0.4)',
+    borderLeftColor: 'rgba(163, 177, 198, 0.4)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.8)',
+    borderRightColor: 'rgba(255, 255, 255, 0.8)',
+  },
   input: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 8,
-    padding: SPACING.md,
+    fontFamily: FONTS.body.regular,
     fontSize: FONT_SIZE.lg,
     color: COLORS.textPrimary,
+    padding: SPACING.md,
   },
   charCount: {
+    fontFamily: FONTS.body.regular,
     fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,
     textAlign: 'right',
@@ -354,20 +415,36 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   colorOption: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    shadowColor: 'rgba(0, 0, 0, 0.2)',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   colorSelected: {
     borderWidth: 3,
-    borderColor: COLORS.textPrimary,
+    borderColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.3)',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 5,
+    elevation: 5,
   },
   dateButton: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 8,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.lg,
     padding: SPACING.md,
+    borderWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.8)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.8)',
+    borderBottomColor: 'rgba(163, 177, 198, 0.4)',
+    borderRightColor: 'rgba(163, 177, 198, 0.4)',
   },
   dateText: {
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.md,
     color: COLORS.textPrimary,
   },
@@ -379,37 +456,54 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   removeButton: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 8,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.lg,
     paddingHorizontal: SPACING.md,
     justifyContent: 'center',
+    borderWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.6)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.6)',
+    borderBottomColor: 'rgba(163, 177, 198, 0.3)',
+    borderRightColor: 'rgba(163, 177, 198, 0.3)',
   },
   removeText: {
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.sm,
     color: COLORS.textMuted,
   },
   addButton: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 8,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.lg,
     padding: SPACING.md,
     alignItems: 'center',
+    borderWidth: 1,
+    borderTopColor: 'rgba(163, 177, 198, 0.4)',
+    borderLeftColor: 'rgba(163, 177, 198, 0.4)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.8)',
+    borderRightColor: 'rgba(255, 255, 255, 0.8)',
   },
   addButtonText: {
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.md,
     color: COLORS.textSecondary,
   },
   archiveButton: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 8,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.lg,
     padding: SPACING.md,
     alignItems: 'center',
+    borderWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.6)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.6)',
+    borderBottomColor: 'rgba(163, 177, 198, 0.3)',
+    borderRightColor: 'rgba(163, 177, 198, 0.3)',
   },
   archiveText: {
+    fontFamily: FONTS.body.bold,
     fontSize: FONT_SIZE.md,
     color: '#FF6B6B',
-    fontWeight: '600',
   },
   unarchiveText: {
-    color: COLORS.neon.spring,
+    color: COLORS.neon.emerald,
   },
 });

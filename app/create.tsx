@@ -10,9 +10,10 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Shadow } from 'react-native-shadow-2';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useGoalStore } from '../src/stores';
-import { COLORS, SPACING, FONT_SIZE, NEON_COLORS } from '../src/constants/theme';
+import { COLORS, SPACING, FONT_SIZE, FONTS, RADIUS, NEON_COLORS } from '../src/constants/theme';
 import { DURATION_PRESETS, NeonColor } from '../src/types';
 import { toDateString, calculateEndDate, fromDateString } from '../src/utils/dates';
 import { getRandomNeonColor } from '../src/utils/colors';
@@ -27,6 +28,8 @@ export default function CreateGoalScreen() {
   const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const [cancelPressed, setCancelPressed] = useState(false);
+  const [createPressed, setCreatePressed] = useState(false);
 
   const isCustomDuration = durationDays === null;
   const endDate = isCustomDuration
@@ -64,14 +67,25 @@ export default function CreateGoalScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={handleCancel} style={styles.headerButton}>
+        <Pressable
+          onPress={handleCancel}
+          onPressIn={() => setCancelPressed(true)}
+          onPressOut={() => setCancelPressed(false)}
+          style={[styles.headerButton, cancelPressed && styles.headerButtonPressed]}
+        >
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
         <Text style={styles.title}>New Goal</Text>
         <Pressable
           onPress={handleCreate}
+          onPressIn={() => setCreatePressed(true)}
+          onPressOut={() => setCreatePressed(false)}
           disabled={!canCreate}
-          style={styles.headerButton}
+          style={[
+            styles.createButton,
+            createPressed && styles.createButtonPressed,
+            !canCreate && styles.createButtonDisabled,
+          ]}
         >
           <Text style={[styles.createText, !canCreate && styles.disabled]}>
             Create
@@ -87,15 +101,17 @@ export default function CreateGoalScreen() {
         {/* Name Input */}
         <View style={styles.section}>
           <Text style={styles.label}>Goal Name</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="e.g., Track calories"
-            placeholderTextColor={COLORS.textMuted}
-            maxLength={30}
-            autoFocus
-          />
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="e.g., Track calories"
+              placeholderTextColor={COLORS.textMuted}
+              maxLength={30}
+              autoFocus
+            />
+          </View>
           <Text style={styles.charCount}>{name.length}/30</Text>
         </View>
 
@@ -137,7 +153,7 @@ export default function CreateGoalScreen() {
                 setShowStartPicker(Platform.OS === 'ios');
                 if (date) setStartDate(date);
               }}
-              themeVariant="dark"
+              themeVariant="light"
             />
           )}
         </View>
@@ -153,7 +169,7 @@ export default function CreateGoalScreen() {
                 style={[
                   styles.durationOption,
                   durationDays === preset.days && styles.durationSelected,
-                  durationDays === preset.days && { borderColor: color },
+                  durationDays === preset.days && { backgroundColor: `${color}20` },
                 ]}
               >
                 <Text
@@ -174,7 +190,7 @@ export default function CreateGoalScreen() {
               style={[
                 styles.durationOption,
                 isCustomDuration && styles.durationSelected,
-                isCustomDuration && { borderColor: color },
+                isCustomDuration && { backgroundColor: `${color}20` },
               ]}
             >
               <Text
@@ -212,7 +228,7 @@ export default function CreateGoalScreen() {
                     setShowEndPicker(Platform.OS === 'ios');
                     if (date) setCustomEndDate(date);
                   }}
-                  themeVariant="dark"
+                  themeVariant="light"
                 />
               )}
             </View>
@@ -221,12 +237,26 @@ export default function CreateGoalScreen() {
 
         {/* Preview */}
         <View style={styles.preview}>
-          <View style={[styles.previewCard, { borderLeftColor: color }]}>
-            <Text style={styles.previewName}>{name || 'Goal name'}</Text>
-            <Text style={styles.previewDates}>
-              {toDateString(startDate)} → {toDateString(endDate)}
-            </Text>
-          </View>
+          <Shadow
+            distance={8}
+            startColor={COLORS.shadowDark}
+            offset={[6, 6]}
+            style={{ borderRadius: RADIUS.xl }}
+          >
+            <Shadow
+              distance={8}
+              startColor={COLORS.shadowLight}
+              offset={[-6, -6]}
+              style={{ borderRadius: RADIUS.xl }}
+            >
+              <View style={[styles.previewCard, { borderLeftColor: color }]}>
+                <Text style={styles.previewName}>{name || 'Goal name'}</Text>
+                <Text style={styles.previewDates}>
+                  {toDateString(startDate)} → {toDateString(endDate)}
+                </Text>
+              </View>
+            </Shadow>
+          </Shadow>
         </View>
       </ScrollView>
     </View>
@@ -244,26 +274,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surface,
   },
   headerButton: {
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.6)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.6)',
+    borderBottomColor: 'rgba(163, 177, 198, 0.3)',
+    borderRightColor: 'rgba(163, 177, 198, 0.3)',
+  },
+  headerButtonPressed: {
+    borderTopColor: 'rgba(163, 177, 198, 0.3)',
+    borderLeftColor: 'rgba(163, 177, 198, 0.3)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.6)',
+    borderRightColor: 'rgba(255, 255, 255, 0.6)',
+    transform: [{ scale: 0.98 }],
   },
   cancelText: {
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.md,
     color: COLORS.textSecondary,
   },
   title: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
+    fontFamily: FONTS.display.bold,
+    fontSize: FONT_SIZE.xl,
     color: COLORS.textPrimary,
+    letterSpacing: -0.5,
+  },
+  createButton: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.accent,
+    shadowColor: 'rgba(108, 99, 255, 0.4)',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  createButtonPressed: {
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 3,
+    transform: [{ scale: 0.98 }],
+  },
+  createButtonDisabled: {
+    backgroundColor: COLORS.background,
+    shadowColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(163, 177, 198, 0.3)',
   },
   createText: {
+    fontFamily: FONTS.body.bold,
     fontSize: FONT_SIZE.md,
-    fontWeight: '600',
-    color: COLORS.neon.cyan,
+    color: '#FFFFFF',
   },
   disabled: {
     color: COLORS.textMuted,
@@ -278,6 +344,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   label: {
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.sm,
     color: COLORS.textSecondary,
     marginBottom: SPACING.sm,
@@ -285,19 +352,29 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   sublabel: {
+    fontFamily: FONTS.body.regular,
     fontSize: FONT_SIZE.sm,
     color: COLORS.textMuted,
     marginBottom: SPACING.sm,
     marginTop: SPACING.md,
   },
+  inputContainer: {
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderTopColor: 'rgba(163, 177, 198, 0.4)',
+    borderLeftColor: 'rgba(163, 177, 198, 0.4)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.8)',
+    borderRightColor: 'rgba(255, 255, 255, 0.8)',
+  },
   input: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 8,
-    padding: SPACING.md,
+    fontFamily: FONTS.body.regular,
     fontSize: FONT_SIZE.lg,
     color: COLORS.textPrimary,
+    padding: SPACING.md,
   },
   charCount: {
+    fontFamily: FONTS.body.regular,
     fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,
     textAlign: 'right',
@@ -309,20 +386,36 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   colorOption: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    shadowColor: 'rgba(0, 0, 0, 0.2)',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   colorSelected: {
     borderWidth: 3,
-    borderColor: COLORS.textPrimary,
+    borderColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.3)',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 5,
+    elevation: 5,
   },
   dateButton: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 8,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.lg,
     padding: SPACING.md,
+    borderWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.8)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.8)',
+    borderBottomColor: 'rgba(163, 177, 198, 0.4)',
+    borderRightColor: 'rgba(163, 177, 198, 0.4)',
   },
   dateText: {
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.md,
     color: COLORS.textPrimary,
   },
@@ -334,38 +427,45 @@ const styles = StyleSheet.create({
   durationOption: {
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
-    borderRadius: 20,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.background,
     borderWidth: 1,
-    borderColor: COLORS.surface,
-    backgroundColor: COLORS.surface,
+    borderTopColor: 'rgba(255, 255, 255, 0.6)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.6)',
+    borderBottomColor: 'rgba(163, 177, 198, 0.3)',
+    borderRightColor: 'rgba(163, 177, 198, 0.3)',
   },
   durationSelected: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
+    borderTopColor: 'rgba(163, 177, 198, 0.3)',
+    borderLeftColor: 'rgba(163, 177, 198, 0.3)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.6)',
+    borderRightColor: 'rgba(255, 255, 255, 0.6)',
   },
   durationText: {
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.sm,
     color: COLORS.textSecondary,
   },
   customDateSection: {
-    marginTop: SPACING.sm,
+    marginTop: SPACING.md,
   },
   preview: {
     marginTop: SPACING.lg,
   },
   previewCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: SPACING.md,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
     borderLeftWidth: 4,
   },
   previewName: {
+    fontFamily: FONTS.display.bold,
     fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
   previewDates: {
+    fontFamily: FONTS.body.regular,
     fontSize: FONT_SIZE.sm,
     color: COLORS.textSecondary,
   },

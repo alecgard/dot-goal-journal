@@ -1,7 +1,7 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Goal } from '../../types';
-import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, FONTS, RADIUS } from '../../constants/theme';
 import { useStats } from '../../hooks/useStats';
 
 interface ArchivedGoalCardProps {
@@ -14,14 +14,22 @@ export const ArchivedGoalCard = memo(function ArchivedGoalCard({
   onPress,
 }: ArchivedGoalCardProps) {
   const { percentage } = useStats(goal);
+  const [isPressed, setIsPressed] = useState(false);
 
   return (
-    <Pressable onPress={onPress} style={styles.container}>
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => setIsPressed(true)}
+      onPressOut={() => setIsPressed(false)}
+      style={[styles.container, isPressed && styles.containerPressed]}
+    >
       <View style={[styles.colorDot, { backgroundColor: goal.color }]} />
       <Text style={styles.name} numberOfLines={1}>
         {goal.name}
       </Text>
-      <Text style={styles.percentage}>{percentage}%</Text>
+      <View style={[styles.percentagePill, { backgroundColor: `${goal.color}15` }]}>
+        <Text style={[styles.percentage, { color: goal.color }]}>{percentage}%</Text>
+      </View>
       {goal.isCompleted && (
         <View style={[styles.badge, { backgroundColor: goal.color }]}>
           <Text style={styles.badgeText}>Done</Text>
@@ -36,32 +44,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.sm,
-    marginBottom: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
     gap: SPACING.sm,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.5)',
+    borderBottomColor: 'rgba(163, 177, 198, 0.25)',
+    borderRightColor: 'rgba(163, 177, 198, 0.25)',
+  },
+  containerPressed: {
+    borderTopColor: 'rgba(163, 177, 198, 0.25)',
+    borderLeftColor: 'rgba(163, 177, 198, 0.25)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.5)',
+    borderRightColor: 'rgba(255, 255, 255, 0.5)',
+    transform: [{ scale: 0.99 }],
   },
   colorDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    shadowColor: 'rgba(0, 0, 0, 0.15)',
+    shadowOffset: { width: 1, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   name: {
     flex: 1,
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.md,
     color: COLORS.textSecondary,
   },
+  percentagePill: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: RADIUS.full,
+  },
   percentage: {
+    fontFamily: FONTS.display.bold,
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
   },
   badge: {
-    paddingHorizontal: SPACING.xs,
-    paddingVertical: 2,
-    borderRadius: 8,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
   },
   badgeText: {
+    fontFamily: FONTS.body.bold,
     fontSize: FONT_SIZE.xs,
-    fontWeight: '600',
-    color: COLORS.background,
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

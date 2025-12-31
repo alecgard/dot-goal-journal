@@ -9,10 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Shadow } from 'react-native-shadow-2';
 import { Goal } from '../../types';
 import { useDayStore } from '../../stores';
 import { formatDisplayDate, formatDayContext, isFuture, isToday as isTodayFn } from '../../utils/dates';
-import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, FONTS, RADIUS } from '../../constants/theme';
 import { completionHaptic } from '../../services/haptics';
 
 interface DayDetailModalProps {
@@ -22,16 +23,22 @@ interface DayDetailModalProps {
   onClose: () => void;
 }
 
+/**
+ * DayDetailModal - Neumorphic day detail view
+ *
+ * Features:
+ * - Extruded modal card
+ * - Inset notes input
+ * - Neumorphic completion toggle button
+ */
 export const DayDetailModal = memo(function DayDetailModal({
   visible,
   date,
   goal,
   onClose,
 }: DayDetailModalProps) {
-  // Use stable selector - just get the days object
   const days = useDayStore((state) => state.days);
 
-  // Derive entry from days using useMemo
   const entry = useMemo(() => {
     if (!date) return undefined;
     const key = `${goal.id}:${date}`;
@@ -39,8 +46,8 @@ export const DayDetailModal = memo(function DayDetailModal({
   }, [days, goal.id, date]);
 
   const [note, setNote] = useState(entry?.note || '');
+  const [isButtonPressed, setIsButtonPressed] = useState(false);
 
-  // Reset note when modal opens with new date
   useEffect(() => {
     if (date) {
       const key = `${goal.id}:${date}`;
@@ -89,67 +96,86 @@ export const DayDetailModal = memo(function DayDetailModal({
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
-          <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.date}>{dateDisplay}</Text>
-              <Text style={styles.context}>{dayContext}</Text>
-              {isTodayDate && (
-                <View style={[styles.todayBadge, { borderColor: COLORS.dotToday }]}>
-                  <Text style={[styles.todayText, { color: COLORS.dotToday }]}>
-                    Today
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Completion Toggle */}
-            {!isFutureDate && (
-              <Pressable
-                onPress={handleToggleCompletion}
-                style={[
-                  styles.completionButton,
-                  isCompleted && { backgroundColor: goal.color },
-                ]}
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <Shadow
+              distance={12}
+              startColor={COLORS.shadowDark}
+              offset={[10, 10]}
+              style={{ borderRadius: RADIUS.xxl }}
+            >
+              <Shadow
+                distance={12}
+                startColor={COLORS.shadowLight}
+                offset={[-10, -10]}
+                style={{ borderRadius: RADIUS.xxl }}
               >
-                <Text
-                  style={[
-                    styles.completionText,
-                    isCompleted && styles.completionTextActive,
-                  ]}
-                >
-                  {isCompleted ? 'Completed' : 'Mark as complete'}
-                </Text>
-              </Pressable>
-            )}
+                <View style={styles.modal}>
+                  {/* Header */}
+                  <View style={styles.header}>
+                    <Text style={styles.date}>{dateDisplay}</Text>
+                    <Text style={styles.context}>{dayContext}</Text>
+                    {isTodayDate && (
+                      <View style={styles.todayBadge}>
+                        <Text style={styles.todayText}>Today</Text>
+                      </View>
+                    )}
+                  </View>
 
-            {isFutureDate && (
-              <View style={styles.futureNotice}>
-                <Text style={styles.futureText}>
-                  This day is in the future. You can add notes but cannot mark it complete yet.
-                </Text>
-              </View>
-            )}
+                  {/* Completion Toggle */}
+                  {!isFutureDate && (
+                    <Pressable
+                      onPress={handleToggleCompletion}
+                      onPressIn={() => setIsButtonPressed(true)}
+                      onPressOut={() => setIsButtonPressed(false)}
+                      style={[
+                        styles.completionButton,
+                        isCompleted && { backgroundColor: goal.color },
+                        isButtonPressed && styles.completionButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.completionText,
+                          isCompleted && styles.completionTextActive,
+                        ]}
+                      >
+                        {isCompleted ? 'Completed' : 'Mark as complete'}
+                      </Text>
+                    </Pressable>
+                  )}
 
-            {/* Notes */}
-            <View style={styles.notesSection}>
-              <Text style={styles.notesLabel}>Notes</Text>
-              <TextInput
-                style={styles.notesInput}
-                value={note}
-                onChangeText={setNote}
-                placeholder="Add notes for this day..."
-                placeholderTextColor={COLORS.textMuted}
-                multiline
-                textAlignVertical="top"
-                onBlur={handleSaveNote}
-              />
-            </View>
+                  {isFutureDate && (
+                    <View style={styles.futureNotice}>
+                      <Text style={styles.futureText}>
+                        This day is in the future. You can add notes but cannot mark it complete yet.
+                      </Text>
+                    </View>
+                  )}
 
-            {/* Close Button */}
-            <Pressable onPress={handleClose} style={styles.closeButton}>
-              <Text style={styles.closeText}>Done</Text>
-            </Pressable>
+                  {/* Notes */}
+                  <View style={styles.notesSection}>
+                    <Text style={styles.notesLabel}>Notes</Text>
+                    <View style={styles.notesInputContainer}>
+                      <TextInput
+                        style={styles.notesInput}
+                        value={note}
+                        onChangeText={setNote}
+                        placeholder="Add notes for this day..."
+                        placeholderTextColor={COLORS.textMuted}
+                        multiline
+                        textAlignVertical="top"
+                        onBlur={handleSaveNote}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Close Button */}
+                  <Pressable onPress={handleClose} style={styles.closeButton}>
+                    <Text style={styles.closeText}>Done</Text>
+                  </Pressable>
+                </View>
+              </Shadow>
+            </Shadow>
           </Pressable>
         </KeyboardAvoidingView>
       </Pressable>
@@ -160,7 +186,7 @@ export const DayDetailModal = memo(function DayDetailModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
@@ -171,21 +197,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modal: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    padding: SPACING.lg,
-    width: '100%',
-    maxWidth: 400,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.xxl,
+    padding: SPACING.xl,
+    width: 340,
+    maxWidth: '100%',
   },
   header: {
     marginBottom: SPACING.lg,
   },
   date: {
+    fontFamily: FONTS.display.bold,
     fontSize: FONT_SIZE.xl,
-    fontWeight: '600',
     color: COLORS.textPrimary,
+    letterSpacing: -0.5,
   },
   context: {
+    fontFamily: FONTS.body.regular,
     fontSize: FONT_SIZE.sm,
     color: COLORS.textSecondary,
     marginTop: SPACING.xs,
@@ -194,36 +222,59 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: SPACING.sm,
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    backgroundColor: `${COLORS.dotToday}20`,
   },
   todayText: {
+    fontFamily: FONTS.body.bold,
     fontSize: FONT_SIZE.xs,
-    fontWeight: '600',
+    color: COLORS.dotToday,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   completionButton: {
     backgroundColor: COLORS.background,
-    borderRadius: 12,
+    borderRadius: RADIUS.lg,
     paddingVertical: SPACING.md,
     alignItems: 'center',
     marginBottom: SPACING.lg,
+    // Extruded effect via border
+    borderWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.8)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.8)',
+    borderBottomColor: 'rgba(163, 177, 198, 0.4)',
+    borderRightColor: 'rgba(163, 177, 198, 0.4)',
+  },
+  completionButtonPressed: {
+    borderTopColor: 'rgba(163, 177, 198, 0.4)',
+    borderLeftColor: 'rgba(163, 177, 198, 0.4)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.8)',
+    borderRightColor: 'rgba(255, 255, 255, 0.8)',
+    transform: [{ scale: 0.98 }],
   },
   completionText: {
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.md,
-    fontWeight: '600',
     color: COLORS.textSecondary,
   },
   completionTextActive: {
-    color: COLORS.background,
+    color: '#FFFFFF',
   },
   futureNotice: {
     backgroundColor: COLORS.background,
-    borderRadius: 12,
+    borderRadius: RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.lg,
+    // Inset effect
+    borderWidth: 1,
+    borderTopColor: 'rgba(163, 177, 198, 0.3)',
+    borderLeftColor: 'rgba(163, 177, 198, 0.3)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.6)',
+    borderRightColor: 'rgba(255, 255, 255, 0.6)',
   },
   futureText: {
+    fontFamily: FONTS.body.regular,
     fontSize: FONT_SIZE.sm,
     color: COLORS.textMuted,
     textAlign: 'center',
@@ -232,18 +283,28 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   notesLabel: {
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.sm,
     color: COLORS.textSecondary,
     marginBottom: SPACING.sm,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
-  notesInput: {
+  notesInputContainer: {
     backgroundColor: COLORS.background,
-    borderRadius: 8,
-    padding: SPACING.md,
+    borderRadius: RADIUS.lg,
+    // Inset effect for input
+    borderWidth: 1,
+    borderTopColor: 'rgba(163, 177, 198, 0.4)',
+    borderLeftColor: 'rgba(163, 177, 198, 0.4)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.8)',
+    borderRightColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  notesInput: {
+    fontFamily: FONTS.body.regular,
     fontSize: FONT_SIZE.md,
     color: COLORS.textPrimary,
+    padding: SPACING.md,
     minHeight: 100,
   },
   closeButton: {
@@ -251,8 +312,8 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
   },
   closeText: {
+    fontFamily: FONTS.body.medium,
     fontSize: FONT_SIZE.md,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: COLORS.accent,
   },
 });
