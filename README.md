@@ -20,11 +20,12 @@ Dots helps you build consistent daily habits through visual tracking. Each day i
 ## Features
 
 - **Visual Progress** - See your entire goal at a glance with a satisfying grid of dots
-- **Daily Tracking** - Tap to mark each day complete. Long-press for notes.
-- **Streaks** - Track your current streak and overall completion rate
-- **Progress Pie** - Quick pie chart shows completed, missed, and remaining days
+- **Quick Complete** - Single tap to mark a day done with a satisfying animation
+- **Day Details** - Long-press any dot to add notes or undo completion
+- **Stats at a Glance** - See percentage through, days remaining, and current streak
+- **Progress Pie** - Home screen shows a pie chart of completed, missed, and remaining days
 - **Reminders** - Set daily notifications to stay on track
-- **Archive** - Completed goals are archived for reference
+- **Archive** - Completed goals are archived, or delete them permanently
 
 ## How to Use
 

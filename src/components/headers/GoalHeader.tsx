@@ -18,7 +18,7 @@ interface GoalHeaderProps {
  * and displays goal stats with accent colors.
  */
 export const GoalHeader = memo(function GoalHeader({ goal }: GoalHeaderProps) {
-  const { timeElapsedPercentage, currentStreak } = useStats(goal);
+  const { timeElapsedPercentage, daysRemaining, currentStreak } = useStats(goal);
   const [backPressed, setBackPressed] = useState(false);
   const [remindersPressed, setRemindersPressed] = useState(false);
   const [settingsPressed, setSettingsPressed] = useState(false);
@@ -103,7 +103,7 @@ export const GoalHeader = memo(function GoalHeader({ goal }: GoalHeaderProps) {
         <View style={styles.stats}>
           <View style={[styles.statPill, { backgroundColor: `${COLORS.textSecondary}20` }]}>
             <Text style={[styles.percentage, { color: COLORS.textSecondary }]}>
-              {timeElapsedPercentage}%
+              {timeElapsedPercentage}% · {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left
             </Text>
           </View>
           {currentStreak > 0 && (

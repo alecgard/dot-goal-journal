@@ -26,7 +26,7 @@ export const GoalCard = memo(function GoalCard({
   onLongPress,
   isActive,
 }: GoalCardProps) {
-  const { timeElapsedPercentage, currentStreak } = useStats(goal);
+  const { timeElapsedPercentage, daysRemaining, currentStreak } = useStats(goal);
   const [isPressed, setIsPressed] = useState(false);
 
   const handlePressIn = useCallback(() => setIsPressed(true), []);
@@ -66,7 +66,7 @@ export const GoalCard = memo(function GoalCard({
           <View style={styles.stats}>
             <View style={[styles.statPill, { backgroundColor: `${COLORS.textSecondary}20` }]}>
               <Text style={[styles.statValue, { color: COLORS.textSecondary }]}>
-                {timeElapsedPercentage}%
+                {timeElapsedPercentage}% · {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left
               </Text>
             </View>
             {currentStreak > 0 && (

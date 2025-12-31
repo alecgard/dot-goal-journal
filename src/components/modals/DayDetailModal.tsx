@@ -73,14 +73,11 @@ export const DayDetailModal = memo(function DayDetailModal({
 
   const handleToggleCompletion = useCallback(async () => {
     if (!date || !canToggleCompletion) return;
-    const wasCompleted = entry?.isCompleted ?? false;
     useDayStore.getState().toggleCompletion(goal.id, date);
     await completionHaptic();
-    // Close modal when marking as complete (not when unmarking)
-    if (!wasCompleted) {
-      handleClose();
-    }
-  }, [date, goal.id, canToggleCompletion, entry?.isCompleted, handleClose]);
+    // Close modal on both complete and uncomplete actions
+    handleClose();
+  }, [date, goal.id, canToggleCompletion, handleClose]);
 
   if (!date) return null;
 

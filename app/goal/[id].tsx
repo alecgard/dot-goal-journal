@@ -48,17 +48,24 @@ export default function GoalScreen() {
     }
   }, [goal, days]);
 
-  const handleDotPress = useCallback((date: string) => {
+  // Long press opens the modal for notes, uncompleting, etc.
+  const handleDotLongPress = useCallback((date: string) => {
     setSelectedDate(date);
     setModalVisible(true);
   }, []);
 
-  const handleDotLongPress = useCallback(
+  // Single tap completes a dot (only if not already complete)
+  const handleDotComplete = useCallback(
     (date: string) => {
       if (!goal || isFuture(date)) return;
-      useDayStore.getState().toggleCompletion(goal.id, date);
+      // Only complete, never uncomplete via tap (must use modal to uncomplete)
+      const key = `${goal.id}_${date}`;
+      const entry = days[key];
+      if (!entry?.isCompleted) {
+        useDayStore.getState().toggleCompletion(goal.id, date);
+      }
     },
-    [goal]
+    [goal, days]
   );
 
   const handleCloseModal = useCallback(() => {
@@ -77,8 +84,8 @@ export default function GoalScreen() {
 
       <DotGrid
         goal={goal}
-        onDotPress={handleDotPress}
         onDotLongPress={handleDotLongPress}
+        onDotComplete={handleDotComplete}
       />
 
       <DayDetailModal

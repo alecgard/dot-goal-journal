@@ -22,8 +22,10 @@ interface DotProps {
   isFuture: boolean;
   isLastDay?: boolean;
   goalColor: string;
+  /** Called on long press - opens the modal */
   onLongPress: () => void;
-  onPress: () => void;
+  /** Called on single tap to complete (only if not already complete) */
+  onComplete: () => void;
   shouldAnimate?: boolean;
   /** Index of this dot in the grid */
   index?: number;
@@ -68,7 +70,7 @@ export const Dot = memo(function Dot({
   isLastDay,
   goalColor,
   onLongPress,
-  onPress,
+  onComplete,
   shouldAnimate,
   index,
   numColumns,
@@ -79,6 +81,7 @@ export const Dot = memo(function Dot({
   const scale = useSharedValue(1);
   const rippleScale = useSharedValue(0);
   const rippleOpacity = useSharedValue(0);
+  const glowOpacity = useSharedValue(0);
 
   // Determine the display color - last day is always gold
   const displayColor = isLastDay ? COLORS.neon.amber : goalColor;
@@ -145,44 +148,56 @@ export const Dot = memo(function Dot({
 
   const triggerCelebration = useCallback(() => {
     'worklet';
-    // Ripple animation
+    // Enhanced ripple animation - bigger and more visible
     rippleScale.value = 0;
-    rippleOpacity.value = 0.6;
-    rippleScale.value = withTiming(2.5, { duration: ANIMATION.celebration });
+    rippleOpacity.value = 0.8;
+    rippleScale.value = withTiming(3.5, { duration: ANIMATION.celebration });
     rippleOpacity.value = withTiming(0, { duration: ANIMATION.celebration });
 
-    // Scale bounce
+    // Glow effect - flash bright then fade
+    glowOpacity.value = 1;
+    glowOpacity.value = withTiming(0, { duration: ANIMATION.celebration * 1.2 });
+
+    // More dramatic scale bounce - bigger pop with overshoot
     scale.value = withSequence(
-      withSpring(1.4, { damping: 4 }),
-      withSpring(1, { damping: 10 })
+      withSpring(1.8, { damping: 3, stiffness: 400 }),
+      withSpring(0.9, { damping: 8, stiffness: 300 }),
+      withSpring(1.15, { damping: 10, stiffness: 200 }),
+      withSpring(1, { damping: 12, stiffness: 180 })
     );
 
     // Haptic on JS thread
     runOnJS(completionHaptic)();
-  }, [scale, rippleScale, rippleOpacity]);
+  }, [scale, rippleScale, rippleOpacity, glowOpacity]);
 
+  // Long press opens the modal (for notes, uncompleting, etc.)
   const longPressGesture = Gesture.LongPress()
     .minDuration(300)
     .onBegin(() => {
       handleLongPressStart();
     })
     .onEnd(() => {
-      handleLongPressEnd();
+      // Reset scale immediately before opening modal
+      scale.value = withSpring(1, { damping: 15, stiffness: 300 });
       if (!isFuture) {
-        triggerCelebration();
         runOnJS(onLongPress)();
-        // Trigger ripple effect to neighboring dots
-        if (onTriggerRipple) {
-          runOnJS(onTriggerRipple)();
-        }
       }
     })
     .onFinalize(() => {
-      handleLongPressEnd();
+      // Always reset scale when gesture ends
+      scale.value = withSpring(1, { damping: 15, stiffness: 300 });
     });
 
+  // Single tap completes the dot (only if not already complete and not future)
   const tapGesture = Gesture.Tap().onEnd(() => {
-    runOnJS(onPress)();
+    if (!isFuture && !isCompleted) {
+      triggerCelebration();
+      runOnJS(onComplete)();
+      // Trigger ripple effect to neighboring dots
+      if (onTriggerRipple) {
+        runOnJS(onTriggerRipple)();
+      }
+    }
   });
 
   const composedGesture = Gesture.Exclusive(longPressGesture, tapGesture);
@@ -194,6 +209,11 @@ export const Dot = memo(function Dot({
   const animatedRippleStyle = useAnimatedStyle(() => ({
     transform: [{ scale: rippleScale.value }],
     opacity: rippleOpacity.value,
+  }));
+
+  const animatedGlowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+    transform: [{ scale: 1.5 + glowOpacity.value * 0.5 }],
   }));
 
   // Determine dot appearance based on state
@@ -214,6 +234,15 @@ export const Dot = memo(function Dot({
   return (
     <GestureDetector gesture={composedGesture}>
       <Animated.View style={[styles.container, animatedDotStyle]}>
+        {/* Glow effect - bright flash on completion */}
+        <Animated.View
+          style={[
+            styles.glow,
+            { backgroundColor: displayColor },
+            animatedGlowStyle,
+          ]}
+        />
+
         {/* Ripple effect */}
         <Animated.View
           style={[
@@ -284,5 +313,15 @@ const styles = StyleSheet.create({
     width: DOT.size,
     height: DOT.size,
     borderRadius: DOT.size / 2,
+  },
+  glow: {
+    position: 'absolute',
+    width: DOT.size,
+    height: DOT.size,
+    borderRadius: DOT.size / 2,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 15,
   },
 });

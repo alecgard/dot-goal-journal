@@ -8,6 +8,7 @@ import { differenceInDays, startOfDay } from 'date-fns';
 interface Stats {
   percentage: number;
   timeElapsedPercentage: number;
+  daysRemaining: number;
   currentStreak: number;
 }
 
@@ -30,12 +31,27 @@ function calculateTimeElapsedPercentage(startDate: string, endDate: string): num
   return Math.round((daysElapsed / totalDays) * 100);
 }
 
+/**
+ * Calculate days remaining for a goal
+ * Returns the number of days left (including today if within range)
+ */
+function calculateDaysRemaining(startDate: string, endDate: string): number {
+  const today = startOfDay(new Date());
+  const end = startOfDay(fromDateString(endDate));
+
+  // Days remaining is difference from today to end date (inclusive of end date)
+  const remaining = differenceInDays(end, today) + 1;
+
+  // Clamp to 0 minimum (goal has ended)
+  return Math.max(0, remaining);
+}
+
 export function useStats(goal: Goal | undefined): Stats {
   const days = useDayStore((state) => state.days);
 
   return useMemo(() => {
     if (!goal) {
-      return { percentage: 0, timeElapsedPercentage: 0, currentStreak: 0 };
+      return { percentage: 0, timeElapsedPercentage: 0, daysRemaining: 0, currentStreak: 0 };
     }
 
     const percentage = calculateCompletionPercentage(
@@ -50,6 +66,11 @@ export function useStats(goal: Goal | undefined): Stats {
       goal.endDate
     );
 
+    const daysRemaining = calculateDaysRemaining(
+      goal.startDate,
+      goal.endDate
+    );
+
     const currentStreak = calculateCurrentStreak(
       days,
       goal.id,
@@ -57,6 +78,6 @@ export function useStats(goal: Goal | undefined): Stats {
       goal.endDate
     );
 
-    return { percentage, timeElapsedPercentage, currentStreak };
+    return { percentage, timeElapsedPercentage, daysRemaining, currentStreak };
   }, [days, goal]);
 }

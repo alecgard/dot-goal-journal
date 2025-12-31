@@ -9,8 +9,10 @@ import { Dot } from './Dot';
 
 interface DotGridProps {
   goal: Goal;
-  onDotPress: (date: string) => void;
+  /** Called on long press - opens the modal */
   onDotLongPress: (date: string) => void;
+  /** Called on single tap to complete (only if not already complete) */
+  onDotComplete: (date: string) => void;
 }
 
 interface DotData {
@@ -24,8 +26,8 @@ interface DotData {
 
 export const DotGrid = memo(function DotGrid({
   goal,
-  onDotPress,
   onDotLongPress,
+  onDotComplete,
 }: DotGridProps) {
   const { width } = useWindowDimensions();
   const flatListRef = useRef<FlatList>(null);
@@ -99,8 +101,8 @@ export const DotGrid = memo(function DotGrid({
         isFuture={item.isFuture}
         isLastDay={item.isLastDay}
         goalColor={COLORS.dotCompleted}
-        onPress={() => onDotPress(item.date)}
         onLongPress={() => onDotLongPress(item.date)}
+        onComplete={() => onDotComplete(item.date)}
         index={item.index}
         numColumns={numColumns}
         rippleTriggerIndex={rippleTriggerIndex}
@@ -108,7 +110,7 @@ export const DotGrid = memo(function DotGrid({
         onTriggerRipple={createRippleTrigger(item.index)}
       />
     ),
-    [onDotPress, onDotLongPress, numColumns, rippleTriggerIndex, rippleTriggerTime, createRippleTrigger]
+    [onDotLongPress, onDotComplete, numColumns, rippleTriggerIndex, rippleTriggerTime, createRippleTrigger]
   );
 
   const keyExtractor = useCallback((item: DotData) => item.date, []);
@@ -134,6 +136,11 @@ export const DotGrid = memo(function DotGrid({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.container}
       columnWrapperStyle={styles.row}
+      // Render all dots at once - no batching/virtualization
+      initialNumToRender={dots.length}
+      maxToRenderPerBatch={dots.length}
+      windowSize={21}
+      removeClippedSubviews={false}
     />
   );
 });
