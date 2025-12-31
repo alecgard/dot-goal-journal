@@ -3,17 +3,22 @@ import { StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withSequence,
   withTiming,
   withDelay,
   runOnJS,
   SharedValue,
   useAnimatedReaction,
+  Easing,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { COLORS, DOT, ANIMATION } from '../../constants/theme';
+import { COLORS, DOT } from '../../constants/theme';
 import { completionHaptic } from '../../services/haptics';
+
+// Animation timing constants (total animation ~1 second)
+const COMPLETION_DURATION = 1000; // Total animation duration in ms
+const WAVE_DURATION = 700; // Duration for each wave to expand
+const WAVE_STAGGER = 150; // Delay between waves
 
 interface DotProps {
   date: string;
@@ -83,6 +88,14 @@ export const Dot = memo(function Dot({
   const rippleOpacity = useSharedValue(0);
   const glowOpacity = useSharedValue(0);
 
+  // Multiple wave rings for expanding wave effect
+  const wave1Scale = useSharedValue(0);
+  const wave1Opacity = useSharedValue(0);
+  const wave2Scale = useSharedValue(0);
+  const wave2Opacity = useSharedValue(0);
+  const wave3Scale = useSharedValue(0);
+  const wave3Opacity = useSharedValue(0);
+
   // Determine the display color - last day is always gold
   const displayColor = isLastDay ? COLORS.neon.amber : goalColor;
 
@@ -112,22 +125,32 @@ export const Dot = memo(function Dot({
 
         const distance = calculateDistance(index!, triggerIndex, numColumns!);
 
-        // Only animate immediate neighbor dots (horizontally, vertically, and diagonally adjacent)
+        // Animate immediate neighbor dots (horizontally, vertically, and diagonally adjacent)
         // Diagonal neighbors have distance sqrt(2) ≈ 1.414, so use 1.5 as threshold
         const maxDistance = 1.5;
         if (distance <= maxDistance) {
           // Delay based on distance - closer dots animate first
-          const delay = distance * 50; // 50ms per unit of distance
+          const delay = distance * 80; // 80ms per unit of distance for more visible stagger
 
-          // Subtle scale pulse that decreases with distance
+          // More prominent scale pulse that decreases with distance
           const intensity = 1 - distance / (maxDistance + 1);
-          const scaleAmount = 1 + 0.15 * intensity; // Max 15% scale up for adjacent dots
+          const scaleAmount = 1 + 0.25 * intensity; // Max 25% scale up for adjacent dots
 
+          // Enhanced neighbor ripple: scale bounce + glow flash
           scale.value = withDelay(
             delay,
             withSequence(
-              withTiming(scaleAmount, { duration: 100 }),
-              withSpring(1, { damping: 12, stiffness: 200 })
+              withTiming(scaleAmount, { duration: 120, easing: Easing.out(Easing.quad) }),
+              withTiming(1, { duration: 300, easing: Easing.inOut(Easing.quad) })
+            )
+          );
+
+          // Flash glow on neighbors for more visible feedback
+          glowOpacity.value = withDelay(
+            delay,
+            withSequence(
+              withTiming(0.6 * intensity, { duration: 100 }),
+              withTiming(0, { duration: 400 })
             )
           );
         }
@@ -138,25 +161,62 @@ export const Dot = memo(function Dot({
 
   const triggerCelebration = useCallback(() => {
     'worklet';
-    // Enhanced ripple animation - bigger and more visible
+    // Central ripple animation - solid fill that expands and fades
     rippleScale.value = 0;
-    rippleOpacity.value = 0.8;
-    rippleScale.value = withTiming(3.5, { duration: ANIMATION.celebration });
-    rippleOpacity.value = withTiming(0, { duration: ANIMATION.celebration });
+    rippleOpacity.value = 0.9;
+    rippleScale.value = withTiming(4, { duration: COMPLETION_DURATION, easing: Easing.out(Easing.quad) });
+    rippleOpacity.value = withTiming(0, { duration: COMPLETION_DURATION, easing: Easing.out(Easing.quad) });
 
-    // Glow effect - flash bright then fade
+    // Wave 1 - first expanding ring (starts immediately)
+    wave1Scale.value = 0;
+    wave1Opacity.value = 0.7;
+    wave1Scale.value = withTiming(5, { duration: WAVE_DURATION, easing: Easing.out(Easing.quad) });
+    wave1Opacity.value = withTiming(0, { duration: WAVE_DURATION, easing: Easing.out(Easing.quad) });
+
+    // Wave 2 - second expanding ring (staggered)
+    wave2Scale.value = 0;
+    wave2Opacity.value = 0;
+    wave2Scale.value = withDelay(
+      WAVE_STAGGER,
+      withTiming(5, { duration: WAVE_DURATION, easing: Easing.out(Easing.quad) })
+    );
+    wave2Opacity.value = withDelay(
+      WAVE_STAGGER,
+      withSequence(
+        withTiming(0.5, { duration: 50 }),
+        withTiming(0, { duration: WAVE_DURATION - 50, easing: Easing.out(Easing.quad) })
+      )
+    );
+
+    // Wave 3 - third expanding ring (more staggered)
+    wave3Scale.value = 0;
+    wave3Opacity.value = 0;
+    wave3Scale.value = withDelay(
+      WAVE_STAGGER * 2,
+      withTiming(5, { duration: WAVE_DURATION, easing: Easing.out(Easing.quad) })
+    );
+    wave3Opacity.value = withDelay(
+      WAVE_STAGGER * 2,
+      withSequence(
+        withTiming(0.35, { duration: 50 }),
+        withTiming(0, { duration: WAVE_DURATION - 50, easing: Easing.out(Easing.quad) })
+      )
+    );
+
+    // Glow effect - bright flash that fades
     glowOpacity.value = 1;
-    glowOpacity.value = withTiming(0, { duration: ANIMATION.celebration * 1.2 });
+    glowOpacity.value = withTiming(0, { duration: COMPLETION_DURATION });
 
-    // Subtle scale bounce - quick pop with minimal overshoot
+    // Scale animation - pop up then return to exactly 1.0
+    // Total timing ~1 second: 150ms up + ~850ms settle back
     scale.value = withSequence(
-      withSpring(1.3, { damping: 12, stiffness: 400 }),
-      withSpring(1, { damping: 15, stiffness: 300 })
+      withTiming(1.35, { duration: 150, easing: Easing.out(Easing.quad) }),
+      withTiming(1.0, { duration: 850, easing: Easing.out(Easing.elastic(1)) })
     );
 
     // Haptic on JS thread
     runOnJS(completionHaptic)();
-  }, [scale, rippleScale, rippleOpacity, glowOpacity]);
+  }, [scale, rippleScale, rippleOpacity, glowOpacity, wave1Scale, wave1Opacity, wave2Scale, wave2Opacity, wave3Scale, wave3Opacity]);
 
   // Single tap handles all interactions:
   // - Completed dots: opens modal (to view notes or uncomplete)
@@ -191,6 +251,22 @@ export const Dot = memo(function Dot({
     transform: [{ scale: 1.5 + glowOpacity.value * 0.5 }],
   }));
 
+  // Wave ring animated styles
+  const animatedWave1Style = useAnimatedStyle(() => ({
+    transform: [{ scale: wave1Scale.value }],
+    opacity: wave1Opacity.value,
+  }));
+
+  const animatedWave2Style = useAnimatedStyle(() => ({
+    transform: [{ scale: wave2Scale.value }],
+    opacity: wave2Opacity.value,
+  }));
+
+  const animatedWave3Style = useAnimatedStyle(() => ({
+    transform: [{ scale: wave3Scale.value }],
+    opacity: wave3Opacity.value,
+  }));
+
   // Determine dot appearance based on state
   const getDotStyle = () => {
     // Last day always shows in gold, regardless of state
@@ -209,6 +285,29 @@ export const Dot = memo(function Dot({
   return (
     <GestureDetector gesture={tapGesture}>
       <Animated.View style={[styles.container, animatedDotStyle]}>
+        {/* Wave rings - expanding circular waves */}
+        <Animated.View
+          style={[
+            styles.waveRing,
+            { borderColor: displayColor },
+            animatedWave1Style,
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.waveRing,
+            { borderColor: displayColor },
+            animatedWave2Style,
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.waveRing,
+            { borderColor: displayColor },
+            animatedWave3Style,
+          ]}
+        />
+
         {/* Glow effect - bright flash on completion */}
         <Animated.View
           style={[
@@ -218,7 +317,7 @@ export const Dot = memo(function Dot({
           ]}
         />
 
-        {/* Ripple effect */}
+        {/* Ripple effect - solid expanding fill */}
         <Animated.View
           style={[
             styles.ripple,
@@ -298,5 +397,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 15,
+  },
+  // Wave ring - expanding circular outline
+  waveRing: {
+    position: 'absolute',
+    width: DOT.size,
+    height: DOT.size,
+    borderRadius: DOT.size / 2,
+    borderWidth: 2,
+    backgroundColor: 'transparent',
   },
 });
