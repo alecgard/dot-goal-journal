@@ -1,43 +1,45 @@
 # Dots
 
-Toy project to play with Claude development flow.
+A simple, beautiful goal tracker for building daily habits.
 
-A minimalist goal-tracking app for iPhone. Track daily habits with a visual grid of dots.
+> This is a toy app built to explore developing with [Claude Code](https://claude.com/code).
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/Dots_HomeView.png" width="300" alt="Home View" />
+  <img src="docs/Dots_GoalView.png" width="300" alt="Goal View" />
+</p>
+
+## What is Dots?
+
+Dots helps you build consistent daily habits through visual tracking. Each day is represented as a dot - complete your goal and the dot turns green.
+
+**Why dots?** Seeing your progress as a grid of colored dots creates a powerful visual chain. You won't want to break it.
 
 ## Features
 
-- **Dot Grid**: Each day is a dot. Completed = colored, missed = grey, future = dark
-- **Multiple Goals**: Track several daily habits with custom colors
-- **Notes**: Add text notes to any day
-- **Streaks**: Track current streak and completion percentage
-- **Dark Mode**: Always-on dark theme with neon colors
+- **Visual Progress** - See your entire goal at a glance with a satisfying grid of dots
+- **Daily Tracking** - Tap to mark each day complete. Long-press for notes.
+- **Streaks** - Track your current streak and overall completion rate
+- **Progress Pie** - Quick pie chart shows completed, missed, and remaining days
+- **Reminders** - Set daily notifications to stay on track
+- **Archive** - Completed goals are archived for reference
 
-## Tech Stack
+## How to Use
 
-- React Native + Expo SDK 54
-- Expo Router (file-based routing)
-- Zustand + AsyncStorage (state persistence)
+1. **Create a Goal** - Tap "Add new goal", give it a name and duration
+2. **Track Daily** - Open your goal and tap today's dot when done
+3. **Stay Consistent** - Watch your chain of green dots grow
+4. **Celebrate** - The final day glows gold when you reach the end
 
-## Development
+## Running the App
+
+Dots is built with React Native and Expo. To run it locally:
 
 ```bash
 npm install
 npx expo start
 ```
 
-Scan the QR code with Expo Go on your iPhone.
-
-## Project Structure
-
-```
-app/                  # Screens (Expo Router)
-  index.tsx           # Home - goal list
-  create.tsx          # Create new goal
-  goal/[id].tsx       # Goal detail with dot grid
-  goal/[id]/settings.tsx
-src/
-  components/         # UI components
-  stores/             # Zustand stores
-  types/              # TypeScript types
-  utils/              # Helper functions
-```
+Scan the QR code with [Expo Go](https://expo.dev/client) on your iPhone.
