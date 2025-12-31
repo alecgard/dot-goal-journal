@@ -7,8 +7,8 @@ A simple, beautiful goal tracker for building daily habits.
 ## Screenshots
 
 <p align="center">
-  <img src="docs/Dots_HomeView.png" width="300" alt="Home View" />
-  <img src="docs/Dots_GoalView.png" width="300" alt="Goal View" />
+  <img src="docs/HomeView.png" width="300" alt="Home View" />
+  <img src="docs/GoalView.png" width="300" alt="Goal View" />
 </p>
 
 ## What is Dots?
