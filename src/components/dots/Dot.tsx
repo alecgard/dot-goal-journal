@@ -97,7 +97,7 @@ export const Dot = memo(function Dot({
   const wave3Opacity = useSharedValue(0);
 
   // Determine the display color - last day is always gold
-  const displayColor = isLastDay ? COLORS.neon.amber : goalColor;
+  const displayColor = isLastDay ? COLORS.neon.gold : goalColor;
 
   // Only set up ripple reaction when we have all required props
   const hasRippleProps = rippleTriggerIndex !== undefined &&
@@ -169,7 +169,7 @@ export const Dot = memo(function Dot({
 
     // Wave 1 - first expanding ring (starts immediately)
     wave1Scale.value = 0;
-    wave1Opacity.value = 0.7;
+    wave1Opacity.value = 0.4;
     wave1Scale.value = withTiming(5, { duration: WAVE_DURATION, easing: Easing.out(Easing.quad) });
     wave1Opacity.value = withTiming(0, { duration: WAVE_DURATION, easing: Easing.out(Easing.quad) });
 
@@ -183,7 +183,7 @@ export const Dot = memo(function Dot({
     wave2Opacity.value = withDelay(
       WAVE_STAGGER,
       withSequence(
-        withTiming(0.5, { duration: 50 }),
+        withTiming(0.3, { duration: 50 }),
         withTiming(0, { duration: WAVE_DURATION - 50, easing: Easing.out(Easing.quad) })
       )
     );
@@ -198,7 +198,7 @@ export const Dot = memo(function Dot({
     wave3Opacity.value = withDelay(
       WAVE_STAGGER * 2,
       withSequence(
-        withTiming(0.35, { duration: 50 }),
+        withTiming(0.2, { duration: 50 }),
         withTiming(0, { duration: WAVE_DURATION - 50, easing: Easing.out(Easing.quad) })
       )
     );
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   dot: {
     width: DOT.size,
     height: DOT.size,
-    borderRadius: DOT.size / 2,
+    borderRadius: DOT.borderRadius,
   },
   // Completed: Extruded appearance with subtle shadow effect
   dotCompleted: {
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: DOT.size + DOT.borderWidth * 2 + 4,
     height: DOT.size + DOT.borderWidth * 2 + 4,
-    borderRadius: (DOT.size + DOT.borderWidth * 2 + 4) / 2,
+    borderRadius: DOT.borderRadius + 4,
     borderWidth: DOT.borderWidth,
     borderColor: COLORS.dotToday,
   },
@@ -386,13 +386,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: DOT.size,
     height: DOT.size,
-    borderRadius: DOT.size / 2,
+    borderRadius: DOT.borderRadius,
   },
   glow: {
     position: 'absolute',
     width: DOT.size,
     height: DOT.size,
-    borderRadius: DOT.size / 2,
+    borderRadius: DOT.borderRadius,
     shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: DOT.size,
     height: DOT.size,
-    borderRadius: DOT.size / 2,
+    borderRadius: DOT.borderRadius,
     borderWidth: 2,
     backgroundColor: 'transparent',
   },

@@ -40,7 +40,8 @@ export const COLORS = {
     coral: '#F97316',     // Orange
     rose: '#EC4899',      // Pink
     emerald: '#10B981',   // Green
-    amber: '#F59E0B',     // Gold
+    amber: '#F59E0B',     // Amber
+    gold: '#D4AF37',      // Rich gold for final day
     sky: '#0EA5E9',       // Blue
     purple: '#8B5CF6',    // Purple
   },
@@ -81,6 +82,7 @@ export const DOT = {
   size: 28,
   spacing: 10,
   borderWidth: 3,
+  borderRadius: 8, // Rounded square (use size/2 for circle)
 } as const;
 
 export const ANIMATION = {

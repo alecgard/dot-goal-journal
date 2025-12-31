@@ -15,3 +15,6 @@
 - Make modal slide in while the dot is being held for long click.
 - Remove long click - simplified to click-only interactions.
 - Animation ~1s with same end state, prominent ripple waves.
+- Make dots rounded squares instead of circles.
+- Make final day gold instead of orange.
+- Reduce wave opacity in completion animation.
