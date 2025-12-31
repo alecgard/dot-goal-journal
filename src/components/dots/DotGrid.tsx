@@ -9,14 +9,10 @@ import { Dot } from './Dot';
 
 interface DotGridProps {
   goal: Goal;
-  /** Called on long press - opens the modal */
-  onDotLongPress: (date: string) => void;
-  /** Called on single tap to complete (only if not already complete) */
+  /** Called on tap to open modal (for completed/future dots) */
+  onDotOpenModal: (date: string) => void;
+  /** Called on tap to complete (only if not already complete and not future) */
   onDotComplete: (date: string) => void;
-  /** Called when hold begins (for modal slide-in animation) */
-  onDotHoldStart?: (date: string) => void;
-  /** Called when hold is cancelled before threshold */
-  onDotHoldCancel?: () => void;
 }
 
 interface DotData {
@@ -30,10 +26,8 @@ interface DotData {
 
 export const DotGrid = memo(function DotGrid({
   goal,
-  onDotLongPress,
+  onDotOpenModal,
   onDotComplete,
-  onDotHoldStart,
-  onDotHoldCancel,
 }: DotGridProps) {
   const { width } = useWindowDimensions();
   const flatListRef = useRef<FlatList>(null);
@@ -107,10 +101,8 @@ export const DotGrid = memo(function DotGrid({
         isFuture={item.isFuture}
         isLastDay={item.isLastDay}
         goalColor={COLORS.dotCompleted}
-        onLongPress={() => onDotLongPress(item.date)}
+        onOpenModal={() => onDotOpenModal(item.date)}
         onComplete={() => onDotComplete(item.date)}
-        onHoldStart={onDotHoldStart ? () => onDotHoldStart(item.date) : undefined}
-        onHoldCancel={onDotHoldCancel}
         index={item.index}
         numColumns={numColumns}
         rippleTriggerIndex={rippleTriggerIndex}
@@ -118,7 +110,7 @@ export const DotGrid = memo(function DotGrid({
         onTriggerRipple={createRippleTrigger(item.index)}
       />
     ),
-    [onDotLongPress, onDotComplete, onDotHoldStart, onDotHoldCancel, numColumns, rippleTriggerIndex, rippleTriggerTime, createRippleTrigger]
+    [onDotOpenModal, onDotComplete, numColumns, rippleTriggerIndex, rippleTriggerTime, createRippleTrigger]
   );
 
   const keyExtractor = useCallback((item: DotData) => item.date, []);

@@ -21,10 +21,6 @@ export default function GoalScreen() {
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  // Track the date being held (for modal slide-in animation)
-  const [holdingDate, setHoldingDate] = useState<string | null>(null);
-  // Track if hold was cancelled
-  const [holdCancelled, setHoldCancelled] = useState(false);
   const hasTrackedScreen = useRef(false);
   const hasCheckedCompletion = useRef(false);
 
@@ -52,32 +48,13 @@ export default function GoalScreen() {
     }
   }, [goal, days]);
 
-  // Called when hold starts - begin modal slide-in animation
-  const handleDotHoldStart = useCallback((date: string) => {
-    setHoldingDate(date);
-    setHoldCancelled(false);
-  }, []);
-
-  // Called when hold is cancelled (released too early)
-  const handleDotHoldCancel = useCallback(() => {
-    setHoldCancelled(true);
-    // Reset holding date after animation completes
-    setTimeout(() => {
-      setHoldingDate(null);
-      setHoldCancelled(false);
-    }, 250);
-  }, []);
-
-  // Long press opens the modal for notes, uncompleting, etc.
-  const handleDotLongPress = useCallback((date: string) => {
+  // Opens the modal for notes, viewing/uncompleting, etc.
+  const handleDotOpenModal = useCallback((date: string) => {
     setSelectedDate(date);
     setModalVisible(true);
-    // Clear holding state since modal is now fully open
-    setHoldingDate(null);
-    setHoldCancelled(false);
   }, []);
 
-  // Single tap completes a dot (only if not already complete)
+  // Single tap completes a dot (only if not already complete and not future)
   const handleDotComplete = useCallback(
     (date: string) => {
       if (!goal || isFuture(date)) return;
@@ -107,10 +84,8 @@ export default function GoalScreen() {
 
       <DotGrid
         goal={goal}
-        onDotLongPress={handleDotLongPress}
+        onDotOpenModal={handleDotOpenModal}
         onDotComplete={handleDotComplete}
-        onDotHoldStart={handleDotHoldStart}
-        onDotHoldCancel={handleDotHoldCancel}
       />
 
       <DayDetailModal
@@ -118,8 +93,6 @@ export default function GoalScreen() {
         date={selectedDate}
         goal={goal}
         onClose={handleCloseModal}
-        holdingDate={holdingDate}
-        holdCancelled={holdCancelled}
       />
     </View>
   );

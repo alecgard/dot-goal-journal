@@ -22,14 +22,10 @@ interface DotProps {
   isFuture: boolean;
   isLastDay?: boolean;
   goalColor: string;
-  /** Called on long press - opens the modal */
-  onLongPress: () => void;
-  /** Called on single tap to complete (only if not already complete) */
+  /** Called on tap to open modal (for completed/future dots) */
+  onOpenModal: () => void;
+  /** Called on tap to complete (only if not already complete and not future) */
   onComplete: () => void;
-  /** Called when hold begins (for modal slide-in animation) */
-  onHoldStart?: () => void;
-  /** Called when hold is cancelled before threshold (modal should slide back out) */
-  onHoldCancel?: () => void;
   shouldAnimate?: boolean;
   /** Index of this dot in the grid */
   index?: number;
@@ -73,10 +69,8 @@ export const Dot = memo(function Dot({
   isFuture,
   isLastDay,
   goalColor,
-  onLongPress,
+  onOpenModal,
   onComplete,
-  onHoldStart,
-  onHoldCancel,
   shouldAnimate,
   index,
   numColumns,
@@ -142,16 +136,6 @@ export const Dot = memo(function Dot({
     [hasRippleProps, index, numColumns]
   );
 
-  const handleLongPressStart = useCallback(() => {
-    'worklet';
-    scale.value = withSpring(0.85);
-  }, [scale]);
-
-  const handleLongPressEnd = useCallback(() => {
-    'worklet';
-    scale.value = withSpring(1);
-  }, [scale]);
-
   const triggerCelebration = useCallback(() => {
     'worklet';
     // Enhanced ripple animation - bigger and more visible
@@ -174,57 +158,24 @@ export const Dot = memo(function Dot({
     runOnJS(completionHaptic)();
   }, [scale, rippleScale, rippleOpacity, glowOpacity]);
 
-  // Track if long press succeeded (reached threshold)
-  const longPressSucceeded = useSharedValue(false);
-
-  // Long press opens the modal (for notes, uncompleting, etc.)
-  const longPressGesture = Gesture.LongPress()
-    .minDuration(300)
-    .onBegin(() => {
-      longPressSucceeded.value = false;
-      handleLongPressStart();
-      // Notify parent that hold is starting (for modal slide-in)
-      if (!isFuture && onHoldStart) {
-        runOnJS(onHoldStart)();
-      }
-    })
-    .onEnd(() => {
-      longPressSucceeded.value = true;
-      // Reset scale immediately before opening modal
-      scale.value = withSpring(1, { damping: 15, stiffness: 300 });
-      if (!isFuture) {
-        runOnJS(onLongPress)();
-      }
-    })
-    .onFinalize(() => {
-      // Always reset scale when gesture ends
-      scale.value = withSpring(1, { damping: 15, stiffness: 300 });
-      // If long press didn't succeed (released too early), notify parent to cancel
-      if (!longPressSucceeded.value && !isFuture && onHoldCancel) {
-        runOnJS(onHoldCancel)();
-      }
-    });
-
-  // Single tap completes the dot (only if not already complete and not future)
-  // If already completed, single tap opens the modal instead
+  // Single tap handles all interactions:
+  // - Completed dots: opens modal (to view notes or uncomplete)
+  // - Future dots: opens modal (to add notes for upcoming days)
+  // - Uncompleted dots (not future): completes the dot
   const tapGesture = Gesture.Tap().onEnd(() => {
-    if (!isFuture) {
-      if (isCompleted) {
-        // Already completed - open modal to view notes or uncomplete
-        runOnJS(onLongPress)();
-      } else {
-        // Not completed - complete it
-        triggerCelebration();
-        runOnJS(onComplete)();
-        // Trigger ripple effect to neighboring dots
-        if (onTriggerRipple) {
-          runOnJS(onTriggerRipple)();
-        }
+    if (isCompleted || isFuture) {
+      // Completed or future - open modal
+      runOnJS(onOpenModal)();
+    } else {
+      // Not completed and not future - complete it
+      triggerCelebration();
+      runOnJS(onComplete)();
+      // Trigger ripple effect to neighboring dots
+      if (onTriggerRipple) {
+        runOnJS(onTriggerRipple)();
       }
     }
   });
-
-  const composedGesture = Gesture.Exclusive(longPressGesture, tapGesture);
 
   const animatedDotStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -256,7 +207,7 @@ export const Dot = memo(function Dot({
   };
 
   return (
-    <GestureDetector gesture={composedGesture}>
+    <GestureDetector gesture={tapGesture}>
       <Animated.View style={[styles.container, animatedDotStyle]}>
         {/* Glow effect - bright flash on completion */}
         <Animated.View

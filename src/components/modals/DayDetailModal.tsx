@@ -13,7 +13,6 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSpring,
   interpolate,
   Easing,
   runOnJS,
@@ -30,10 +29,6 @@ interface DayDetailModalProps {
   date: string | null;
   goal: Goal;
   onClose: () => void;
-  /** Date being held (for slide-in animation during hold) */
-  holdingDate?: string | null;
-  /** Whether hold was cancelled (modal should slide back out) */
-  holdCancelled?: boolean;
 }
 
 /**
@@ -49,99 +44,69 @@ export const DayDetailModal = memo(function DayDetailModal({
   date,
   goal,
   onClose,
-  holdingDate,
-  holdCancelled,
 }: DayDetailModalProps) {
   const days = useDayStore((state) => state.days);
 
-  // Animation value: 0 = fully hidden (off-screen), 1 = fully visible
-  const slideProgress = useSharedValue(0);
+  // Animation value: 0 = hidden, 1 = fully visible
+  const animationProgress = useSharedValue(0);
   // Track if modal content should be shown
   const [showModal, setShowModal] = useState(false);
 
-  // The date to display - either the holding date or the selected date
-  const displayDate = holdingDate || date;
-
   const entry = useMemo(() => {
-    if (!displayDate) return undefined;
-    const key = `${goal.id}_${displayDate}`;
+    if (!date) return undefined;
+    const key = `${goal.id}_${date}`;
     return days[key];
-  }, [days, goal.id, displayDate]);
+  }, [days, goal.id, date]);
 
   const [note, setNote] = useState(entry?.note || '');
   const [isButtonPressed, setIsButtonPressed] = useState(false);
 
-  // Handle hold start - begin sliding in
-  useEffect(() => {
-    if (holdingDate && !visible) {
-      setShowModal(true);
-      // Animate to 70% visible during hold (gives visual feedback)
-      slideProgress.value = withTiming(0.7, {
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-      });
-    }
-  }, [holdingDate, visible, slideProgress]);
-
-  // Handle hold cancelled - slide back out
-  useEffect(() => {
-    if (holdCancelled && !visible) {
-      slideProgress.value = withTiming(0, {
-        duration: 200,
-        easing: Easing.in(Easing.cubic),
-      }, () => {
-        runOnJS(setShowModal)(false);
-      });
-    }
-  }, [holdCancelled, visible, slideProgress]);
-
-  // Handle fully visible (hold completed or opened via tap)
+  // Handle visibility changes with simple fade animation
   useEffect(() => {
     if (visible) {
       setShowModal(true);
-      slideProgress.value = withSpring(1, {
-        damping: 20,
-        stiffness: 300,
-      });
-    } else if (!holdingDate) {
-      // Closing the modal
-      slideProgress.value = withTiming(0, {
+      animationProgress.value = withTiming(1, {
         duration: 200,
+        easing: Easing.out(Easing.cubic),
+      });
+    } else {
+      animationProgress.value = withTiming(0, {
+        duration: 150,
         easing: Easing.in(Easing.cubic),
       }, () => {
         runOnJS(setShowModal)(false);
       });
     }
-  }, [visible, holdingDate, slideProgress]);
+  }, [visible, animationProgress]);
 
   useEffect(() => {
-    if (displayDate) {
-      const key = `${goal.id}_${displayDate}`;
+    if (date) {
+      const key = `${goal.id}_${date}`;
       const currentEntry = days[key];
       setNote(currentEntry?.note || '');
     }
-  }, [displayDate, goal.id, days]);
+  }, [date, goal.id, days]);
 
-  const canToggleCompletion = displayDate && !isFuture(displayDate);
+  const canToggleCompletion = date && !isFuture(date);
   const isCompleted = entry?.isCompleted ?? false;
 
-  // Animated style for the modal container
+  // Animated style for the modal container (subtle scale + fade)
   const animatedModalStyle = useAnimatedStyle(() => {
-    // Modal height is approximately 450px, translate from bottom
-    const translateY = interpolate(
-      slideProgress.value,
+    const scale = interpolate(
+      animationProgress.value,
       [0, 1],
-      [500, 0]
+      [0.95, 1]
     );
     return {
-      transform: [{ translateY }],
+      opacity: animationProgress.value,
+      transform: [{ scale }],
     };
   });
 
   // Animated style for backdrop opacity
   const animatedBackdropStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
-      slideProgress.value,
+      animationProgress.value,
       [0, 1],
       [0, 0.3]
     );
@@ -151,11 +116,11 @@ export const DayDetailModal = memo(function DayDetailModal({
   });
 
   const handleSaveNote = useCallback(() => {
-    if (!displayDate) return;
+    if (!date) return;
     if (note !== (entry?.note || '')) {
-      useDayStore.getState().updateNote(goal.id, displayDate, note);
+      useDayStore.getState().updateNote(goal.id, date, note);
     }
-  }, [displayDate, goal.id, note, entry?.note]);
+  }, [date, goal.id, note, entry?.note]);
 
   const handleClose = useCallback(() => {
     handleSaveNote();
@@ -163,27 +128,24 @@ export const DayDetailModal = memo(function DayDetailModal({
   }, [handleSaveNote, onClose]);
 
   const handleToggleCompletion = useCallback(async () => {
-    if (!displayDate || !canToggleCompletion) return;
-    useDayStore.getState().toggleCompletion(goal.id, displayDate);
+    if (!date || !canToggleCompletion) return;
+    useDayStore.getState().toggleCompletion(goal.id, date);
     await completionHaptic();
     // Close modal on both complete and uncomplete actions
     handleClose();
-  }, [displayDate, goal.id, canToggleCompletion, handleClose]);
+  }, [date, goal.id, canToggleCompletion, handleClose]);
 
   // Don't render if nothing to show
-  if (!showModal && !displayDate) return null;
+  if (!showModal && !date) return null;
 
-  const dateDisplay = displayDate ? formatDisplayDate(displayDate) : '';
-  const dayContext = displayDate ? formatDayContext(goal.startDate, goal.endDate, displayDate) : '';
-  const dayNum = displayDate ? getDayNumber(goal.startDate, displayDate) : 0;
+  const dateDisplay = date ? formatDisplayDate(date) : '';
+  const dayContext = date ? formatDayContext(goal.startDate, goal.endDate, date) : '';
+  const dayNum = date ? getDayNumber(goal.startDate, date) : 0;
   const totalDays = getDayCount(goal.startDate, goal.endDate);
   const daysRemaining = totalDays - dayNum;
   const dayContextWithRemaining = `${dayContext} (${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'} remaining)`;
-  const isTodayDate = displayDate ? isTodayFn(displayDate) : false;
-  const isFutureDate = displayDate ? isFuture(displayDate) : false;
-
-  // Determine if interactions should be enabled (only when fully visible)
-  const isInteractive = visible;
+  const isTodayDate = date ? isTodayFn(date) : false;
+  const isFutureDate = date ? isFuture(date) : false;
 
   return (
     <Modal
@@ -195,12 +157,11 @@ export const DayDetailModal = memo(function DayDetailModal({
       <Animated.View style={[styles.backdrop, animatedBackdropStyle]}>
         <Pressable
           style={StyleSheet.absoluteFill}
-          onPress={isInteractive ? handleClose : undefined}
+          onPress={handleClose}
         />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
-          pointerEvents={isInteractive ? 'auto' : 'none'}
         >
           <Animated.View style={animatedModalStyle}>
             <Pressable onPress={(e) => e.stopPropagation()}>
@@ -231,8 +192,8 @@ export const DayDetailModal = memo(function DayDetailModal({
                     {/* Completion Toggle */}
                     {!isFutureDate && (
                       <Pressable
-                        onPress={isInteractive ? handleToggleCompletion : undefined}
-                        onPressIn={() => isInteractive && setIsButtonPressed(true)}
+                        onPress={handleToggleCompletion}
+                        onPressIn={() => setIsButtonPressed(true)}
                         onPressOut={() => setIsButtonPressed(false)}
                         style={[
                           styles.completionButton,
@@ -266,19 +227,18 @@ export const DayDetailModal = memo(function DayDetailModal({
                         <TextInput
                           style={styles.notesInput}
                           value={note}
-                          onChangeText={isInteractive ? setNote : undefined}
+                          onChangeText={setNote}
                           placeholder="Add notes for this day..."
                           placeholderTextColor={COLORS.textMuted}
                           multiline
                           textAlignVertical="top"
                           onBlur={handleSaveNote}
-                          editable={isInteractive}
                         />
                       </View>
                     </View>
 
                     {/* Close Button */}
-                    <Pressable onPress={isInteractive ? handleClose : undefined} style={styles.closeButton}>
+                    <Pressable onPress={handleClose} style={styles.closeButton}>
                       <Text style={styles.closeText}>Done</Text>
                     </Pressable>
                   </View>

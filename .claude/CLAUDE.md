@@ -1,1 +1,1 @@
-After each change, update the README.md file to reflect any relevant changes. 
+After each change, refresh the README.md file to reflect any relevant changes. 

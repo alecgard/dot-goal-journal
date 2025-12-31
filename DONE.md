@@ -13,3 +13,4 @@
 - Allow single clicking on completed days to open modal.
 - Make complete animation less bouncy.
 - Make modal slide in while the dot is being held for long click.
+- Remove long click - simplified to click-only interactions.
