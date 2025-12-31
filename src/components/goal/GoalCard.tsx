@@ -26,7 +26,7 @@ export const GoalCard = memo(function GoalCard({
   onLongPress,
   isActive,
 }: GoalCardProps) {
-  const { percentage, currentStreak } = useStats(goal);
+  const { timeElapsedPercentage, currentStreak } = useStats(goal);
   const [isPressed, setIsPressed] = useState(false);
 
   const handlePressIn = useCallback(() => setIsPressed(true), []);
@@ -47,7 +47,7 @@ export const GoalCard = memo(function GoalCard({
         ]}
       >
         {/* Color accent indicator */}
-        <View style={[styles.accentBar, { backgroundColor: goal.color }]} />
+        <View style={[styles.accentBar, { backgroundColor: COLORS.dotCompleted }]} />
 
         <View style={styles.content}>
           {/* Header */}
@@ -56,20 +56,17 @@ export const GoalCard = memo(function GoalCard({
               {goal.name}
             </Text>
             {goal.isCompleted && (
-              <View style={[styles.badge, { backgroundColor: goal.color }]}>
+              <View style={[styles.badge, { backgroundColor: COLORS.dotCompleted }]}>
                 <Text style={styles.badgeText}>Done</Text>
               </View>
             )}
           </View>
 
-          {/* Mini dot preview */}
-          <MiniDotPreview goal={goal} />
-
           {/* Stats */}
           <View style={styles.stats}>
-            <View style={[styles.statPill, { backgroundColor: `${goal.color}20` }]}>
-              <Text style={[styles.statValue, { color: goal.color }]}>
-                {percentage}%
+            <View style={[styles.statPill, { backgroundColor: `${COLORS.textSecondary}20` }]}>
+              <Text style={[styles.statValue, { color: COLORS.textSecondary }]}>
+                {timeElapsedPercentage}%
               </Text>
             </View>
             {currentStreak > 0 && (
@@ -78,6 +75,11 @@ export const GoalCard = memo(function GoalCard({
               </Text>
             )}
           </View>
+        </View>
+
+        {/* Pie chart on the right */}
+        <View style={styles.pieChartContainer}>
+          <MiniDotPreview goal={goal} />
         </View>
       </Pressable>
     </View>
@@ -114,6 +116,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: SPACING.lg,
+    justifyContent: 'center',
+  },
+  pieChartContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingRight: SPACING.lg,
   },
   header: {
     flexDirection: 'row',
@@ -142,7 +150,6 @@ const styles = StyleSheet.create({
   stats: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: SPACING.md,
     gap: SPACING.sm,
   },
   statPill: {

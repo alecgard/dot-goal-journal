@@ -12,7 +12,7 @@ import {
 import { Shadow } from 'react-native-shadow-2';
 import { Goal } from '../../types';
 import { useDayStore } from '../../stores';
-import { formatDisplayDate, formatDayContext, isFuture, isToday as isTodayFn } from '../../utils/dates';
+import { formatDisplayDate, formatDayContext, isFuture, isToday as isTodayFn, getDayNumber, getDayCount } from '../../utils/dates';
 import { COLORS, SPACING, FONT_SIZE, FONTS, RADIUS } from '../../constants/theme';
 import { completionHaptic } from '../../services/haptics';
 
@@ -41,7 +41,7 @@ export const DayDetailModal = memo(function DayDetailModal({
 
   const entry = useMemo(() => {
     if (!date) return undefined;
-    const key = `${goal.id}:${date}`;
+    const key = `${goal.id}_${date}`;
     return days[key];
   }, [days, goal.id, date]);
 
@@ -50,7 +50,7 @@ export const DayDetailModal = memo(function DayDetailModal({
 
   useEffect(() => {
     if (date) {
-      const key = `${goal.id}:${date}`;
+      const key = `${goal.id}_${date}`;
       const currentEntry = days[key];
       setNote(currentEntry?.note || '');
     }
@@ -58,12 +58,6 @@ export const DayDetailModal = memo(function DayDetailModal({
 
   const canToggleCompletion = date && !isFuture(date);
   const isCompleted = entry?.isCompleted ?? false;
-
-  const handleToggleCompletion = useCallback(async () => {
-    if (!date || !canToggleCompletion) return;
-    useDayStore.getState().toggleCompletion(goal.id, date);
-    await completionHaptic();
-  }, [date, goal.id, canToggleCompletion]);
 
   const handleSaveNote = useCallback(() => {
     if (!date) return;
@@ -77,10 +71,25 @@ export const DayDetailModal = memo(function DayDetailModal({
     onClose();
   }, [handleSaveNote, onClose]);
 
+  const handleToggleCompletion = useCallback(async () => {
+    if (!date || !canToggleCompletion) return;
+    const wasCompleted = entry?.isCompleted ?? false;
+    useDayStore.getState().toggleCompletion(goal.id, date);
+    await completionHaptic();
+    // Close modal when marking as complete (not when unmarking)
+    if (!wasCompleted) {
+      handleClose();
+    }
+  }, [date, goal.id, canToggleCompletion, entry?.isCompleted, handleClose]);
+
   if (!date) return null;
 
   const dateDisplay = formatDisplayDate(date);
   const dayContext = formatDayContext(goal.startDate, goal.endDate, date);
+  const dayNum = getDayNumber(goal.startDate, date);
+  const totalDays = getDayCount(goal.startDate, goal.endDate);
+  const daysRemaining = totalDays - dayNum;
+  const dayContextWithRemaining = `${dayContext} (${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'} remaining)`;
   const isTodayDate = isTodayFn(date);
   const isFutureDate = isFuture(date);
 
@@ -113,7 +122,7 @@ export const DayDetailModal = memo(function DayDetailModal({
                   {/* Header */}
                   <View style={styles.header}>
                     <Text style={styles.date}>{dateDisplay}</Text>
-                    <Text style={styles.context}>{dayContext}</Text>
+                    <Text style={styles.context}>{dayContextWithRemaining}</Text>
                     {isTodayDate && (
                       <View style={styles.todayBadge}>
                         <Text style={styles.todayText}>Today</Text>
@@ -129,7 +138,7 @@ export const DayDetailModal = memo(function DayDetailModal({
                       onPressOut={() => setIsButtonPressed(false)}
                       style={[
                         styles.completionButton,
-                        isCompleted && { backgroundColor: goal.color },
+                        isCompleted && { backgroundColor: COLORS.dotCompleted },
                         isButtonPressed && styles.completionButtonPressed,
                       ]}
                     >

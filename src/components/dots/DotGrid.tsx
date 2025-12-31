@@ -1,5 +1,6 @@
 import React, { memo, useMemo, useRef, useEffect, useCallback } from 'react';
-import { View, StyleSheet, useWindowDimensions, FlatList } from 'react-native';
+import { StyleSheet, useWindowDimensions, FlatList } from 'react-native';
+import { useSharedValue } from 'react-native-reanimated';
 import { Goal } from '../../types';
 import { useDayStore } from '../../stores';
 import { getDateRange, isToday, isFuture, getTodayString } from '../../utils/dates';
@@ -17,6 +18,7 @@ interface DotData {
   isCompleted: boolean;
   isToday: boolean;
   isFuture: boolean;
+  index: number;
 }
 
 export const DotGrid = memo(function DotGrid({
@@ -28,6 +30,10 @@ export const DotGrid = memo(function DotGrid({
   const flatListRef = useRef<FlatList>(null);
   const days = useDayStore((state) => state.days);
 
+  // Shared values for coordinating ripple animations across dots
+  const rippleTriggerIndex = useSharedValue(-1);
+  const rippleTriggerTime = useSharedValue(0);
+
   // Calculate number of columns based on screen width
   const dotTotalSize = DOT.size + DOT.spacing;
   const availableWidth = width - SPACING.md * 2;
@@ -37,7 +43,7 @@ export const DotGrid = memo(function DotGrid({
   const dots: DotData[] = useMemo(() => {
     const dateRange = getDateRange(goal.startDate, goal.endDate);
 
-    return dateRange.map((date) => {
+    return dateRange.map((date, index) => {
       const key = `${goal.id}_${date}`;
       const entry = days[key];
 
@@ -46,6 +52,7 @@ export const DotGrid = memo(function DotGrid({
         isCompleted: entry?.isCompleted ?? false,
         isToday: isToday(date),
         isFuture: isFuture(date),
+        index,
       };
     });
   }, [goal.id, goal.startDate, goal.endDate, days]);
@@ -71,6 +78,15 @@ export const DotGrid = memo(function DotGrid({
     }
   }, [todayIndex, numColumns, dotTotalSize]);
 
+  // Create a callback to trigger ripple effect from a specific dot index
+  const createRippleTrigger = useCallback(
+    (dotIndex: number) => () => {
+      rippleTriggerIndex.value = dotIndex;
+      rippleTriggerTime.value = Date.now();
+    },
+    [rippleTriggerIndex, rippleTriggerTime]
+  );
+
   const renderDot = useCallback(
     ({ item }: { item: DotData }) => (
       <Dot
@@ -78,12 +94,17 @@ export const DotGrid = memo(function DotGrid({
         isCompleted={item.isCompleted}
         isToday={item.isToday}
         isFuture={item.isFuture}
-        goalColor={goal.color}
+        goalColor={COLORS.dotCompleted}
         onPress={() => onDotPress(item.date)}
         onLongPress={() => onDotLongPress(item.date)}
+        index={item.index}
+        numColumns={numColumns}
+        rippleTriggerIndex={rippleTriggerIndex}
+        rippleTriggerTime={rippleTriggerTime}
+        onTriggerRipple={createRippleTrigger(item.index)}
       />
     ),
-    [goal.color, onDotPress, onDotLongPress]
+    [onDotPress, onDotLongPress, numColumns, rippleTriggerIndex, rippleTriggerTime, createRippleTrigger]
   );
 
   const keyExtractor = useCallback((item: DotData) => item.date, []);

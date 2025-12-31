@@ -6,7 +6,10 @@ import Animated, {
   withSpring,
   withSequence,
   withTiming,
+  withDelay,
   runOnJS,
+  SharedValue,
+  useAnimatedReaction,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { COLORS, DOT, ANIMATION } from '../../constants/theme';
@@ -21,6 +24,16 @@ interface DotProps {
   onLongPress: () => void;
   onPress: () => void;
   shouldAnimate?: boolean;
+  /** Index of this dot in the grid */
+  index?: number;
+  /** Number of columns in the grid */
+  numColumns?: number;
+  /** Shared value containing the index of the dot that triggered the ripple */
+  rippleTriggerIndex?: SharedValue<number>;
+  /** Shared value containing the timestamp of when ripple was triggered */
+  rippleTriggerTime?: SharedValue<number>;
+  /** Callback to trigger ripple effect (called when this dot is completed) */
+  onTriggerRipple?: () => void;
 }
 
 /**
@@ -32,6 +45,20 @@ interface DotProps {
  * - Missed: Flat grey, minimal presence
  * - Today: Orange accent ring
  */
+/** Calculate the distance between two dots in a grid */
+function calculateDistance(
+  index1: number,
+  index2: number,
+  numColumns: number
+): number {
+  'worklet';
+  const row1 = Math.floor(index1 / numColumns);
+  const col1 = index1 % numColumns;
+  const row2 = Math.floor(index2 / numColumns);
+  const col2 = index2 % numColumns;
+  return Math.sqrt(Math.pow(row2 - row1, 2) + Math.pow(col2 - col1, 2));
+}
+
 export const Dot = memo(function Dot({
   date,
   isCompleted,
@@ -41,10 +68,57 @@ export const Dot = memo(function Dot({
   onLongPress,
   onPress,
   shouldAnimate,
+  index,
+  numColumns,
+  rippleTriggerIndex,
+  rippleTriggerTime,
+  onTriggerRipple,
 }: DotProps) {
   const scale = useSharedValue(1);
   const rippleScale = useSharedValue(0);
   const rippleOpacity = useSharedValue(0);
+
+  // React to ripple triggers from other dots
+  useAnimatedReaction(
+    () => rippleTriggerTime?.value ?? 0,
+    (currentTime, previousTime) => {
+      if (
+        currentTime !== previousTime &&
+        currentTime > 0 &&
+        rippleTriggerIndex !== undefined &&
+        index !== undefined &&
+        numColumns !== undefined
+      ) {
+        const triggerIndex = rippleTriggerIndex.value;
+
+        // Don't animate the source dot (it has its own animation)
+        if (triggerIndex === index) return;
+
+        const distance = calculateDistance(index, triggerIndex, numColumns);
+
+        // Only animate immediate neighbor dots (horizontally, vertically, and diagonally adjacent)
+        // Diagonal neighbors have distance sqrt(2) ≈ 1.414, so use 1.5 as threshold
+        const maxDistance = 1.5;
+        if (distance <= maxDistance) {
+          // Delay based on distance - closer dots animate first
+          const delay = distance * 50; // 50ms per unit of distance
+
+          // Subtle scale pulse that decreases with distance
+          const intensity = 1 - distance / (maxDistance + 1);
+          const scaleAmount = 1 + 0.15 * intensity; // Max 15% scale up for adjacent dots
+
+          scale.value = withDelay(
+            delay,
+            withSequence(
+              withTiming(scaleAmount, { duration: 100 }),
+              withSpring(1, { damping: 12, stiffness: 200 })
+            )
+          );
+        }
+      }
+    },
+    [index, numColumns]
+  );
 
   const handleLongPressStart = useCallback(() => {
     'worklet';
@@ -84,6 +158,10 @@ export const Dot = memo(function Dot({
       if (!isFuture) {
         triggerCelebration();
         runOnJS(onLongPress)();
+        // Trigger ripple effect to neighboring dots
+        if (onTriggerRipple) {
+          runOnJS(onTriggerRipple)();
+        }
       }
     })
     .onFinalize(() => {

@@ -97,6 +97,14 @@ export function formatDisplayDate(dateString: string): string {
 }
 
 /**
+ * Format date for form display
+ * e.g., "12-Dec-2025"
+ */
+export function formatFormDate(date: Date): string {
+  return format(date, 'd-MMM-yyyy');
+}
+
+/**
  * Format date with context for modal
  * e.g., "Day 45 of 180"
  */

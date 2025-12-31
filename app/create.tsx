@@ -13,16 +13,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shadow } from 'react-native-shadow-2';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useGoalStore } from '../src/stores';
-import { COLORS, SPACING, FONT_SIZE, FONTS, RADIUS, NEON_COLORS } from '../src/constants/theme';
-import { DURATION_PRESETS, NeonColor } from '../src/types';
-import { toDateString, calculateEndDate, fromDateString } from '../src/utils/dates';
-import { getRandomNeonColor } from '../src/utils/colors';
+import { COLORS, SPACING, FONT_SIZE, FONTS, RADIUS } from '../src/constants/theme';
+import { DURATION_PRESETS } from '../src/types';
+import { toDateString, calculateEndDate, fromDateString, formatFormDate } from '../src/utils/dates';
 
 export default function CreateGoalScreen() {
   const insets = useSafeAreaInsets();
 
   const [name, setName] = useState('');
-  const [color, setColor] = useState<NeonColor>(getRandomNeonColor());
   const [startDate, setStartDate] = useState(new Date());
   const [durationDays, setDurationDays] = useState<number | null>(30);
   const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
@@ -43,14 +41,14 @@ export default function CreateGoalScreen() {
 
     const goalId = useGoalStore.getState().addGoal({
       name: name.trim(),
-      color,
+      color: COLORS.accent,
       startDate: toDateString(startDate),
       endDate: toDateString(endDate),
       notificationTime: null,
     });
 
     router.replace(`/goal/${goalId}`);
-  }, [name, color, startDate, endDate, canCreate]);
+  }, [name, startDate, endDate, canCreate]);
 
   const handleCancel = useCallback(() => {
     router.back();
@@ -115,24 +113,6 @@ export default function CreateGoalScreen() {
           <Text style={styles.charCount}>{name.length}/30</Text>
         </View>
 
-        {/* Color Picker */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Color</Text>
-          <View style={styles.colorPicker}>
-            {NEON_COLORS.map((c) => (
-              <Pressable
-                key={c}
-                onPress={() => setColor(c as NeonColor)}
-                style={[
-                  styles.colorOption,
-                  { backgroundColor: c },
-                  color === c && styles.colorSelected,
-                ]}
-              />
-            ))}
-          </View>
-        </View>
-
         {/* Start Date */}
         <View style={styles.section}>
           <Text style={styles.label}>Start Date</Text>
@@ -141,7 +121,7 @@ export default function CreateGoalScreen() {
             style={styles.dateButton}
           >
             <Text style={styles.dateText}>
-              {startDate.toLocaleDateString()}
+              {formatFormDate(startDate)}
             </Text>
           </Pressable>
           {showStartPicker && (
@@ -169,13 +149,13 @@ export default function CreateGoalScreen() {
                 style={[
                   styles.durationOption,
                   durationDays === preset.days && styles.durationSelected,
-                  durationDays === preset.days && { backgroundColor: `${color}20` },
+                  durationDays === preset.days && { backgroundColor: `${COLORS.accent}20` },
                 ]}
               >
                 <Text
                   style={[
                     styles.durationText,
-                    durationDays === preset.days && { color },
+                    durationDays === preset.days && { color: COLORS.accent },
                   ]}
                 >
                   {preset.label}
@@ -190,13 +170,13 @@ export default function CreateGoalScreen() {
               style={[
                 styles.durationOption,
                 isCustomDuration && styles.durationSelected,
-                isCustomDuration && { backgroundColor: `${color}20` },
+                isCustomDuration && { backgroundColor: `${COLORS.accent}20` },
               ]}
             >
               <Text
                 style={[
                   styles.durationText,
-                  isCustomDuration && { color },
+                  isCustomDuration && { color: COLORS.accent },
                 ]}
               >
                 Custom
@@ -214,7 +194,7 @@ export default function CreateGoalScreen() {
               >
                 <Text style={styles.dateText}>
                   {customEndDate
-                    ? customEndDate.toLocaleDateString()
+                    ? formatFormDate(customEndDate)
                     : 'Select end date'}
                 </Text>
               </Pressable>
@@ -249,10 +229,10 @@ export default function CreateGoalScreen() {
               offset={[-6, -6]}
               style={{ borderRadius: RADIUS.xl }}
             >
-              <View style={[styles.previewCard, { borderLeftColor: color }]}>
+              <View style={[styles.previewCard, { borderLeftColor: COLORS.accent }]}>
                 <Text style={styles.previewName}>{name || 'Goal name'}</Text>
                 <Text style={styles.previewDates}>
-                  {toDateString(startDate)} → {toDateString(endDate)}
+                  {formatFormDate(startDate)} to {formatFormDate(endDate)}
                 </Text>
               </View>
             </Shadow>
@@ -379,30 +359,6 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     textAlign: 'right',
     marginTop: SPACING.xs,
-  },
-  colorPicker: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-    flexWrap: 'wrap',
-  },
-  colorOption: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    shadowColor: 'rgba(0, 0, 0, 0.2)',
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  colorSelected: {
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    shadowColor: 'rgba(0, 0, 0, 0.3)',
-    shadowOffset: { width: 3, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 5,
-    elevation: 5,
   },
   dateButton: {
     backgroundColor: COLORS.background,

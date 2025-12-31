@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: RADIUS.full,
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.dotCompleted,
     justifyContent: 'center',
     alignItems: 'center',
   },

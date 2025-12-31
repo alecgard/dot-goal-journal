@@ -23,15 +23,15 @@ export const ArchivedGoalCard = memo(function ArchivedGoalCard({
       onPressOut={() => setIsPressed(false)}
       style={[styles.container, isPressed && styles.containerPressed]}
     >
-      <View style={[styles.colorDot, { backgroundColor: goal.color }]} />
+      <View style={[styles.colorDot, { backgroundColor: COLORS.dotCompleted }]} />
       <Text style={styles.name} numberOfLines={1}>
         {goal.name}
       </Text>
-      <View style={[styles.percentagePill, { backgroundColor: `${goal.color}15` }]}>
-        <Text style={[styles.percentage, { color: goal.color }]}>{percentage}%</Text>
+      <View style={[styles.percentagePill, { backgroundColor: `${COLORS.dotCompleted}15` }]}>
+        <Text style={[styles.percentage, { color: COLORS.dotCompleted }]}>{percentage}%</Text>
       </View>
       {goal.isCompleted && (
-        <View style={[styles.badge, { backgroundColor: goal.color }]}>
+        <View style={[styles.badge, { backgroundColor: COLORS.dotCompleted }]}>
           <Text style={styles.badgeText}>Done</Text>
         </View>
       )}
