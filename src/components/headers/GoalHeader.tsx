@@ -34,7 +34,7 @@ export const GoalHeader = memo(function GoalHeader({ goal, zoomLevel, onToggleZo
   const [statsPressed, setStatsPressed] = useState(false);
 
   const handleBack = useCallback(() => {
-    router.back();
+    router.replace('/');
   }, []);
 
   const handleReminders = useCallback(() => {
