@@ -1,5 +1,5 @@
 import React, { memo, useMemo, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Dimensions } from 'react-native';
 import { Goal } from '../../types';
 import { useDayStore } from '../../stores';
 import { getDateRange, isToday, isFuture } from '../../utils/dates';
@@ -28,12 +28,26 @@ interface MonthRowData {
   weeks: (WeekData | null)[]; // Array of 5-6 slots for week-of-month (null for empty cells)
 }
 
-// Size of week dots (doubled)
-const WEEK_DOT_SIZE = (DOT.size + 4) * 2;
-const WEEK_DOT_TOTAL_SIZE = WEEK_DOT_SIZE + DOT.spacing;
-
 // Month label width
 const MONTH_LABEL_WIDTH = 40;
+
+// Padding on each side of the grid
+const HORIZONTAL_PADDING = SPACING.md * 2;
+
+// Maximum number of week columns (some months can have 6 weeks)
+const MAX_WEEK_COLUMNS = 6;
+
+// Calculate dot size dynamically based on screen width
+function calculateDotSize(): { dotSize: number; dotTotalSize: number } {
+  const screenWidth = Dimensions.get('window').width;
+  // Available width = screen width - month label - horizontal padding
+  const availableWidth = screenWidth - MONTH_LABEL_WIDTH - HORIZONTAL_PADDING;
+  // Each column needs space for the dot plus spacing
+  // We want to fit MAX_WEEK_COLUMNS columns
+  const dotTotalSize = Math.floor(availableWidth / MAX_WEEK_COLUMNS);
+  const dotSize = dotTotalSize - DOT.spacing;
+  return { dotSize, dotTotalSize };
+}
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -50,32 +64,59 @@ function getMondayOfWeek(dateStr: string): string {
 }
 
 /**
+ * Get the Thursday of the week containing the given Monday date
+ * Thursday is used because it's always in the majority month of a week
+ * (ISO week standard: a week belongs to the month containing its Thursday)
+ */
+function getThursdayOfWeek(mondayDateStr: string): Date {
+  const monday = new Date(mondayDateStr + 'T00:00:00');
+  const thursday = new Date(monday);
+  thursday.setDate(monday.getDate() + 3); // Thursday is 3 days after Monday
+  return thursday;
+}
+
+/**
  * Get the week-of-month index (0-5) for a given Monday date
+ * Week assignment is based on which month the Thursday falls in,
+ * ensuring weeks are assigned to the month with the majority of days.
  * Week 0 = first week of the month (contains day 1-7 or starts before day 1)
  */
-function getWeekOfMonth(mondayDateStr: string): number {
-  const monday = new Date(mondayDateStr + 'T00:00:00');
-  const year = monday.getFullYear();
-  const month = monday.getMonth();
+function getWeekOfMonth(mondayDateStr: string): { weekOfMonth: number; month: number; year: number } {
+  // Use Thursday to determine which month this week belongs to
+  const thursday = getThursdayOfWeek(mondayDateStr);
+  const year = thursday.getFullYear();
+  const month = thursday.getMonth();
 
-  // Get the first day of this month
+  // Get the first day of this month (the month Thursday is in)
   const firstOfMonth = new Date(year, month, 1);
 
-  // Get the Monday of the week that contains the 1st of the month
+  // Get the Monday of the week that contains the 1st of this month
   const firstMondayStr = getMondayOfWeek(firstOfMonth.toISOString().split('T')[0]);
   const firstMonday = new Date(firstMondayStr + 'T00:00:00');
 
-  // Calculate how many weeks from the first Monday to this Monday
-  const diffTime = monday.getTime() - firstMonday.getTime();
+  // But we need to check if that first week's Thursday is actually in this month
+  const firstWeekThursday = getThursdayOfWeek(firstMondayStr);
+
+  // If the first week's Thursday is in a previous month, the first week of this month
+  // is actually the next week
+  let adjustedFirstMonday = firstMonday;
+  if (firstWeekThursday.getMonth() !== month) {
+    adjustedFirstMonday = new Date(firstMonday);
+    adjustedFirstMonday.setDate(adjustedFirstMonday.getDate() + 7);
+  }
+
+  const monday = new Date(mondayDateStr + 'T00:00:00');
+  // Calculate how many weeks from the adjusted first Monday to this Monday
+  const diffTime = monday.getTime() - adjustedFirstMonday.getTime();
   const diffWeeks = Math.round(diffTime / (7 * 24 * 60 * 60 * 1000));
 
-  return diffWeeks;
+  return { weekOfMonth: diffWeeks, month, year };
 }
 
 /**
  * Group an array of dates into weeks (7 days each, starting on Monday)
- * Each week is assigned to the month that contains the majority of its days,
- * or specifically the month of its Monday for consistent week-of-month calculation.
+ * Each week is assigned to the month that contains the majority of its days
+ * (determined by which month the Thursday falls in).
  */
 function groupIntoWeeks(
   dates: string[],
@@ -109,16 +150,16 @@ function groupIntoWeeks(
 
   // Convert map to sorted array of weeks
   const sortedMondays = Array.from(weekMap.keys()).sort();
-  sortedMondays.forEach((monday, index) => {
-    const mondayDate = new Date(monday + 'T00:00:00');
-    const weekOfMonth = getWeekOfMonth(monday);
+  sortedMondays.forEach((monday) => {
+    // getWeekOfMonth now returns the month/year based on Thursday (majority rule)
+    const { weekOfMonth, month, year } = getWeekOfMonth(monday);
     weeks.push({
       id: `week-${monday}`,
-      weekNumber: weekOfMonth, // Now represents week-of-month (0-5)
+      weekNumber: weekOfMonth, // Week-of-month (0-5) based on Thursday's month
       days: weekMap.get(monday)!,
       startDate: monday,
-      month: mondayDate.getMonth(),
-      year: mondayDate.getFullYear(),
+      month, // Month is now determined by Thursday, not Monday
+      year,  // Year is now determined by Thursday, not Monday
     });
   });
 
@@ -210,6 +251,9 @@ export const WeeklyDotGrid = memo(function WeeklyDotGrid({
   const scrollViewRef = useRef<ScrollView>(null);
   const days = useDayStore((state) => state.days);
 
+  // Calculate dynamic dot size based on screen width
+  const { dotSize, dotTotalSize } = useMemo(() => calculateDotSize(), []);
+
   // Generate week data and grid structure
   const { weekColumnNumbers, monthRows } = useMemo(() => {
     const dateRange = getDateRange(goal.startDate, goal.endDate);
@@ -237,7 +281,7 @@ export const WeeklyDotGrid = memo(function WeeklyDotGrid({
   useEffect(() => {
     if (todayMonthIndex >= 0 && scrollViewRef.current) {
       const headerHeight = 30;
-      const scrollOffset = todayMonthIndex * WEEK_DOT_TOTAL_SIZE + headerHeight - 100;
+      const scrollOffset = todayMonthIndex * dotTotalSize + headerHeight - 100;
 
       setTimeout(() => {
         scrollViewRef.current?.scrollTo({
@@ -246,14 +290,29 @@ export const WeeklyDotGrid = memo(function WeeklyDotGrid({
         });
       }, 100);
     }
-  }, [todayMonthIndex]);
+  }, [todayMonthIndex, dotTotalSize]);
+
+  // Dynamic styles based on calculated dot size
+  const dynamicStyles = useMemo(() => ({
+    columnHeader: {
+      width: dotTotalSize,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    dotCell: {
+      width: dotTotalSize,
+      height: dotTotalSize,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+  }), [dotTotalSize]);
 
   // Render column headers (week numbers 1-5 or 1-6)
   const renderColumnHeaders = () => (
     <View style={styles.headerRow}>
       <View style={styles.monthLabelPlaceholder} />
       {weekColumnNumbers.map((weekNum) => (
-        <View key={weekNum} style={styles.columnHeader}>
+        <View key={weekNum} style={dynamicStyles.columnHeader}>
           <Text style={styles.columnHeaderText}>{weekNum}</Text>
         </View>
       ))}
@@ -267,13 +326,14 @@ export const WeeklyDotGrid = memo(function WeeklyDotGrid({
         <Text style={styles.monthLabelText}>{monthRow.monthLabel}</Text>
       </View>
       {monthRow.weeks.map((week, index) => (
-        <View key={`${monthRow.monthKey}-${index}`} style={styles.dotCell}>
+        <View key={`${monthRow.monthKey}-${index}`} style={dynamicStyles.dotCell}>
           {week ? (
             <WeekDot
               days={week.days}
               onPress={() => onWeekPress(week.startDate)}
               goalColor={COLORS.dotCompleted}
               weekNumber={week.weekNumber}
+              size={dotSize}
             />
           ) : null}
         </View>
@@ -288,16 +348,10 @@ export const WeeklyDotGrid = memo(function WeeklyDotGrid({
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.horizontalContent}
-      >
-        <View style={styles.gridContainer}>
-          {renderColumnHeaders()}
-          {monthRows.map(renderMonthRow)}
-        </View>
-      </ScrollView>
+      <View style={styles.gridContainer}>
+        {renderColumnHeaders()}
+        {monthRows.map(renderMonthRow)}
+      </View>
     </ScrollView>
   );
 });
@@ -308,8 +362,6 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingBottom: SPACING.xl,
-  },
-  horizontalContent: {
     paddingHorizontal: SPACING.md,
   },
   gridContainer: {
@@ -323,11 +375,6 @@ const styles = StyleSheet.create({
   },
   monthLabelPlaceholder: {
     width: MONTH_LABEL_WIDTH,
-  },
-  columnHeader: {
-    width: WEEK_DOT_TOTAL_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   columnHeaderText: {
     fontSize: FONT_SIZE.sm,
@@ -348,11 +395,5 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     color: COLORS.textSecondary,
     fontFamily: FONTS.body.medium,
-  },
-  dotCell: {
-    width: WEEK_DOT_TOTAL_SIZE,
-    height: WEEK_DOT_TOTAL_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

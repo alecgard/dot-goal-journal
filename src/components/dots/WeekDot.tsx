@@ -26,18 +26,21 @@ interface WeekDotProps {
   onPress: () => void;
   goalColor?: string;
   weekNumber?: number;
+  /** Size of the dot in pixels. Defaults to (DOT.size + 4) * 2 */
+  size?: number;
 }
 
-// Size of the week dot (doubled for better visibility)
-const WEEK_DOT_SIZE = (DOT.size + 4) * 2;
-const CENTER = WEEK_DOT_SIZE / 2;
-const RADIUS = (WEEK_DOT_SIZE / 2) - 2;
+// Default size of the week dot (doubled for better visibility)
+const DEFAULT_WEEK_DOT_SIZE = (DOT.size + 4) * 2;
 
 /**
  * Calculate SVG path for a pie segment in a square
  * The segments radiate from the center, dividing the square into 7 wedges
  */
-function getSegmentPath(index: number, totalSegments: number = 7): string {
+function getSegmentPath(index: number, dotSize: number, totalSegments: number = 7): string {
+  const center = dotSize / 2;
+  const radius = (dotSize / 2) - 2;
+
   // Each segment spans an angle of 360/7 degrees
   const anglePerSegment = 360 / totalSegments;
   const startAngle = index * anglePerSegment - 90; // Start from top (-90 degrees)
@@ -48,16 +51,16 @@ function getSegmentPath(index: number, totalSegments: number = 7): string {
   const endRad = (endAngle * Math.PI) / 180;
 
   // Calculate points on the edge (using a larger radius to extend to edges)
-  const edgeRadius = RADIUS * 1.5; // Extend beyond the visible circle to reach edges
-  const x1 = CENTER + edgeRadius * Math.cos(startRad);
-  const y1 = CENTER + edgeRadius * Math.sin(startRad);
-  const x2 = CENTER + edgeRadius * Math.cos(endRad);
-  const y2 = CENTER + edgeRadius * Math.sin(endRad);
+  const edgeRadius = radius * 1.5; // Extend beyond the visible circle to reach edges
+  const x1 = center + edgeRadius * Math.cos(startRad);
+  const y1 = center + edgeRadius * Math.sin(startRad);
+  const x2 = center + edgeRadius * Math.cos(endRad);
+  const y2 = center + edgeRadius * Math.sin(endRad);
 
   // Create pie slice path from center to edge points
   const largeArcFlag = anglePerSegment > 180 ? 1 : 0;
 
-  return `M ${CENTER} ${CENTER} L ${x1} ${y1} A ${edgeRadius} ${edgeRadius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+  return `M ${center} ${center} L ${x1} ${y1} A ${edgeRadius} ${edgeRadius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
 }
 
 /**
@@ -94,6 +97,7 @@ export const WeekDot = memo(function WeekDot({
   days,
   onPress,
   goalColor = COLORS.dotCompleted,
+  size = DEFAULT_WEEK_DOT_SIZE,
 }: WeekDotProps) {
   const scale = useSharedValue(1);
 
@@ -121,7 +125,7 @@ export const WeekDot = memo(function WeekDot({
   const segments = Array.from({ length: 7 }, (_, index) => {
     const day = days[index];
     const color = getSegmentColor(day, goalColor);
-    const path = getSegmentPath(index);
+    const path = getSegmentPath(index, size);
     const isSegmentToday = day?.isToday ?? false;
 
     return (
@@ -135,14 +139,25 @@ export const WeekDot = memo(function WeekDot({
     );
   });
 
+  // Dynamic container and dot sizes based on size prop
+  const containerSize = size + DOT.spacing;
+  const dynamicContainerStyle = {
+    width: containerSize,
+    height: containerSize,
+  };
+  const dynamicDotStyle = {
+    width: size,
+    height: size,
+  };
+
   return (
     <GestureDetector gesture={tapGesture}>
-      <Animated.View style={[styles.container, animatedStyle]}>
-        <View style={styles.dotContainer}>
+      <Animated.View style={[styles.container, dynamicContainerStyle, animatedStyle]}>
+        <View style={[styles.dotContainer, dynamicDotStyle]}>
           <Svg
-            width={WEEK_DOT_SIZE}
-            height={WEEK_DOT_SIZE}
-            viewBox={`0 0 ${WEEK_DOT_SIZE} ${WEEK_DOT_SIZE}`}
+            width={size}
+            height={size}
+            viewBox={`0 0 ${size} ${size}`}
           >
             <G>
               {segments}
@@ -156,14 +171,10 @@ export const WeekDot = memo(function WeekDot({
 
 const styles = StyleSheet.create({
   container: {
-    width: WEEK_DOT_SIZE + DOT.spacing,
-    height: WEEK_DOT_SIZE + DOT.spacing,
     justifyContent: 'center',
     alignItems: 'center',
   },
   dotContainer: {
-    width: WEEK_DOT_SIZE,
-    height: WEEK_DOT_SIZE,
     borderRadius: DOT.borderRadius * 2,
     overflow: 'hidden',
     // Neumorphic shadow for raised appearance
