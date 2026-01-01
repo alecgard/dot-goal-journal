@@ -28,8 +28,8 @@ interface WeekDotProps {
   weekNumber?: number;
 }
 
-// Size of the week dot (slightly larger than regular dots to accommodate segments)
-const WEEK_DOT_SIZE = DOT.size + 4;
+// Size of the week dot (doubled for better visibility)
+const WEEK_DOT_SIZE = (DOT.size + 4) * 2;
 const CENTER = WEEK_DOT_SIZE / 2;
 const RADIUS = (WEEK_DOT_SIZE / 2) - 2;
 
@@ -130,7 +130,7 @@ export const WeekDot = memo(function WeekDot({
         d={path}
         fill={color}
         stroke={isSegmentToday ? COLORS.dotToday : COLORS.background}
-        strokeWidth={isSegmentToday ? 1.5 : 0.5}
+        strokeWidth={isSegmentToday ? 3 : 0.5}
       />
     );
   });
@@ -156,22 +156,22 @@ export const WeekDot = memo(function WeekDot({
 
 const styles = StyleSheet.create({
   container: {
-    width: DOT.size + DOT.spacing,
-    height: DOT.size + DOT.spacing,
+    width: WEEK_DOT_SIZE + DOT.spacing,
+    height: WEEK_DOT_SIZE + DOT.spacing,
     justifyContent: 'center',
     alignItems: 'center',
   },
   dotContainer: {
     width: WEEK_DOT_SIZE,
     height: WEEK_DOT_SIZE,
-    borderRadius: DOT.borderRadius,
+    borderRadius: DOT.borderRadius * 2,
     overflow: 'hidden',
     // Neumorphic shadow for raised appearance
     shadowColor: 'rgba(163, 177, 198, 0.8)',
-    shadowOffset: { width: 2, height: 2 },
+    shadowOffset: { width: 3, height: 3 },
     shadowOpacity: 1,
-    shadowRadius: 3,
-    elevation: 4,
+    shadowRadius: 4,
+    elevation: 5,
     backgroundColor: COLORS.background,
   },
 });

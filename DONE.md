@@ -28,3 +28,6 @@
 - Stats modal on % click with detailed statistics.
 - Fix day alignment bug (dots now align to correct day column).
 - Orange highlight for today's segment in Week view.
+- More visible orange outline for today (stroke width 3).
+- Calendar grid layout with month rows and week column headers.
+- Week dots doubled in size.
