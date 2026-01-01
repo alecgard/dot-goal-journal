@@ -31,3 +31,8 @@
 - More visible orange outline for today (stroke width 3).
 - Calendar grid layout with month rows and week column headers.
 - Week dots doubled in size.
+- Week numbers (1-5) instead of dates for columns.
+- Fix week view sizing and week-of-month assignment.
+- Fix Home button navigation.
+- Partial week segments (empty days show transparent with faint outline).
+- More visible today indicator (4px stroke + 3-layer glow).

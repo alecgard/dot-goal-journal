@@ -19,6 +19,8 @@ export interface WeekDayData {
   isFuture: boolean;
   isLastDay?: boolean;
   isToday?: boolean;
+  /** True if this day is outside the goal's date range (used for partial weeks) */
+  isPlaceholder?: boolean;
 }
 
 interface WeekDotProps {
@@ -71,6 +73,10 @@ function getSegmentColor(day: WeekDayData | undefined, goalColor: string): strin
     // No day data (partial week) - use very light/transparent
     return 'transparent';
   }
+  // Placeholder days (outside goal date range) - transparent
+  if (day.isPlaceholder) {
+    return 'transparent';
+  }
   // Last day is always gold
   if (day.isLastDay) {
     return COLORS.neon.gold;
@@ -83,6 +89,25 @@ function getSegmentColor(day: WeekDayData | undefined, goalColor: string): strin
   }
   // Missed day
   return COLORS.dotMissed;
+}
+
+/**
+ * Get stroke properties for a segment
+ */
+function getSegmentStroke(day: WeekDayData | undefined): { stroke: string; strokeWidth: number } {
+  if (!day) {
+    return { stroke: COLORS.background, strokeWidth: 0.5 };
+  }
+  // Placeholder segments get a faint outline
+  if (day.isPlaceholder) {
+    return { stroke: 'rgba(163, 177, 198, 0.3)', strokeWidth: 0.5 };
+  }
+  // Today gets prominent orange stroke
+  if (day.isToday) {
+    return { stroke: COLORS.dotToday, strokeWidth: 4 };
+  }
+  // Normal segments
+  return { stroke: COLORS.background, strokeWidth: 0.5 };
 }
 
 /**
@@ -100,6 +125,9 @@ export const WeekDot = memo(function WeekDot({
   size = DEFAULT_WEEK_DOT_SIZE,
 }: WeekDotProps) {
   const scale = useSharedValue(1);
+
+  // Find if there's a "today" segment for glow effect
+  const todayIndex = days.findIndex(day => day?.isToday);
 
   const tapGesture = Gesture.Tap()
     .onBegin(() => {
@@ -126,18 +154,49 @@ export const WeekDot = memo(function WeekDot({
     const day = days[index];
     const color = getSegmentColor(day, goalColor);
     const path = getSegmentPath(index, size);
-    const isSegmentToday = day?.isToday ?? false;
+    const { stroke, strokeWidth } = getSegmentStroke(day);
 
     return (
       <Path
         key={index}
         d={path}
         fill={color}
-        stroke={isSegmentToday ? COLORS.dotToday : COLORS.background}
-        strokeWidth={isSegmentToday ? 3 : 0.5}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
       />
     );
   });
+
+  // Create a separate glow layer for today's segment (rendered on top)
+  // Multiple layers create a soft glow effect around the orange stroke
+  const todayGlowSegment = todayIndex >= 0 ? (
+    <>
+      {/* Outer glow layer - wide and very transparent */}
+      <Path
+        d={getSegmentPath(todayIndex, size)}
+        fill="transparent"
+        stroke={COLORS.dotToday}
+        strokeWidth={10}
+        strokeOpacity={0.15}
+      />
+      {/* Middle glow layer */}
+      <Path
+        d={getSegmentPath(todayIndex, size)}
+        fill="transparent"
+        stroke={COLORS.dotToday}
+        strokeWidth={7}
+        strokeOpacity={0.25}
+      />
+      {/* Inner glow layer - more visible */}
+      <Path
+        d={getSegmentPath(todayIndex, size)}
+        fill="transparent"
+        stroke={COLORS.dotToday}
+        strokeWidth={5}
+        strokeOpacity={0.4}
+      />
+    </>
+  ) : null;
 
   // Dynamic container and dot sizes based on size prop
   const containerSize = size + DOT.spacing;
@@ -161,6 +220,7 @@ export const WeekDot = memo(function WeekDot({
           >
             <G>
               {segments}
+              {todayGlowSegment}
             </G>
           </Svg>
         </View>

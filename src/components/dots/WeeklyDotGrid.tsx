@@ -114,9 +114,38 @@ function getWeekOfMonth(mondayDateStr: string): { weekOfMonth: number; month: nu
 }
 
 /**
+ * Get the day-of-week index (0=Monday, 1=Tuesday, ..., 6=Sunday)
+ */
+function getDayOfWeekIndex(dateStr: string): number {
+  const date = new Date(dateStr + 'T00:00:00');
+  const day = date.getDay();
+  // Convert from JS day (0=Sunday, 1=Monday, ..., 6=Saturday)
+  // to our format (0=Monday, 1=Tuesday, ..., 6=Sunday)
+  return day === 0 ? 6 : day - 1;
+}
+
+/**
+ * Get all dates in a week starting from the given Monday
+ */
+function getWeekDates(mondayStr: string): string[] {
+  const monday = new Date(mondayStr + 'T00:00:00');
+  const dates: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    dates.push(date.toISOString().split('T')[0]);
+  }
+  return dates;
+}
+
+/**
  * Group an array of dates into weeks (7 days each, starting on Monday)
  * Each week is assigned to the month that contains the majority of its days
  * (determined by which month the Thursday falls in).
+ *
+ * For partial weeks (goal starts/ends mid-week), placeholder entries are
+ * added for days outside the goal range. Each day is positioned correctly
+ * based on its day-of-week (Monday=0, Tuesday=1, ..., Sunday=6).
  */
 function groupIntoWeeks(
   dates: string[],
@@ -124,15 +153,17 @@ function groupIntoWeeks(
   goalId: string
 ): WeekData[] {
   const weeks: WeekData[] = [];
-  const weekMap = new Map<string, WeekDayData[]>();
-  const lastDateIndex = dates.length - 1;
+  const weekMap = new Map<string, Map<number, WeekDayData>>(); // monday -> (dayIndex -> dayData)
+  const dateSet = new Set(dates);
+  const lastDate = dates[dates.length - 1];
 
-  // Group dates by their Monday
-  dates.forEach((date, index) => {
+  // Group dates by their Monday, storing by day-of-week index
+  dates.forEach((date) => {
     const monday = getMondayOfWeek(date);
+    const dayIndex = getDayOfWeekIndex(date);
     const key = `${goalId}_${date}`;
     const entry = days[key];
-    const isLastDay = index === lastDateIndex;
+    const isLastDay = date === lastDate;
 
     const dayData: WeekDayData = {
       date,
@@ -140,23 +171,45 @@ function groupIntoWeeks(
       isFuture: isFuture(date),
       isLastDay,
       isToday: isToday(date),
+      isPlaceholder: false,
     };
 
     if (!weekMap.has(monday)) {
-      weekMap.set(monday, []);
+      weekMap.set(monday, new Map());
     }
-    weekMap.get(monday)!.push(dayData);
+    weekMap.get(monday)!.set(dayIndex, dayData);
   });
 
-  // Convert map to sorted array of weeks
+  // Convert map to sorted array of weeks, filling in placeholders for missing days
   const sortedMondays = Array.from(weekMap.keys()).sort();
   sortedMondays.forEach((monday) => {
+    const dayMap = weekMap.get(monday)!;
+    const weekDates = getWeekDates(monday);
+
+    // Build array of 7 days, with placeholders for days outside goal range
+    const weekDays: WeekDayData[] = [];
+    for (let i = 0; i < 7; i++) {
+      if (dayMap.has(i)) {
+        weekDays.push(dayMap.get(i)!);
+      } else {
+        // This day is outside the goal's date range - create placeholder
+        weekDays.push({
+          date: weekDates[i],
+          isCompleted: false,
+          isFuture: false,
+          isLastDay: false,
+          isToday: false,
+          isPlaceholder: true,
+        });
+      }
+    }
+
     // getWeekOfMonth now returns the month/year based on Thursday (majority rule)
     const { weekOfMonth, month, year } = getWeekOfMonth(monday);
     weeks.push({
       id: `week-${monday}`,
       weekNumber: weekOfMonth, // Week-of-month (0-5) based on Thursday's month
-      days: weekMap.get(monday)!,
+      days: weekDays,
       startDate: monday,
       month, // Month is now determined by Thursday, not Monday
       year,  // Year is now determined by Thursday, not Monday
