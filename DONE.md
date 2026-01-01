@@ -18,3 +18,11 @@
 - Make dots rounded squares instead of circles.
 - Make final day gold instead of orange.
 - Reduce wave opacity in completion animation.
+- Weekly zoom view with pinch gesture.
+- Gold final day in week view.
+- Day/Week toggle in header.
+- Animated pinch transition.
+- 7 dots per row with full width.
+- Day letters (M T W T F S S) at top of grid.
+- Monday dates (Jan-05) on left of each row.
+- Stats modal on % click with detailed statistics.

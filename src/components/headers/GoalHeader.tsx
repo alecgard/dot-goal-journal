@@ -7,8 +7,16 @@ import { Goal } from '../../types';
 import { useStats } from '../../hooks/useStats';
 import { COLORS, SPACING, FONT_SIZE, FONTS, RADIUS } from '../../constants/theme';
 
+type ZoomLevel = 'day' | 'week';
+
 interface GoalHeaderProps {
   goal: Goal;
+  /** Current zoom level (day or week) */
+  zoomLevel?: ZoomLevel;
+  /** Callback to toggle between day and week view */
+  onToggleZoom?: () => void;
+  /** Callback when stats pill is pressed */
+  onStatsPress?: () => void;
 }
 
 /**
@@ -17,11 +25,13 @@ interface GoalHeaderProps {
  * Features extruded button elements for back/settings
  * and displays goal stats with accent colors.
  */
-export const GoalHeader = memo(function GoalHeader({ goal }: GoalHeaderProps) {
+export const GoalHeader = memo(function GoalHeader({ goal, zoomLevel, onToggleZoom, onStatsPress }: GoalHeaderProps) {
   const { timeElapsedPercentage, daysRemaining, currentStreak } = useStats(goal);
   const [backPressed, setBackPressed] = useState(false);
   const [remindersPressed, setRemindersPressed] = useState(false);
   const [settingsPressed, setSettingsPressed] = useState(false);
+  const [zoomPressed, setZoomPressed] = useState(false);
+  const [statsPressed, setStatsPressed] = useState(false);
 
   const handleBack = useCallback(() => {
     router.back();
@@ -96,16 +106,39 @@ export const GoalHeader = memo(function GoalHeader({ goal }: GoalHeaderProps) {
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.name} numberOfLines={1}>
-          {goal.name}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.name} numberOfLines={1}>
+            {goal.name}
+          </Text>
+          {zoomLevel && onToggleZoom && (
+            <Pressable
+              onPress={onToggleZoom}
+              onPressIn={() => setZoomPressed(true)}
+              onPressOut={() => setZoomPressed(false)}
+              style={[styles.zoomPill, zoomPressed && styles.zoomPillPressed]}
+            >
+              <Text style={styles.zoomText}>
+                {zoomLevel === 'day' ? 'Day' : 'Week'}
+              </Text>
+            </Pressable>
+          )}
+        </View>
 
         <View style={styles.stats}>
-          <View style={[styles.statPill, { backgroundColor: `${COLORS.textSecondary}20` }]}>
+          <Pressable
+            onPress={onStatsPress}
+            onPressIn={() => setStatsPressed(true)}
+            onPressOut={() => setStatsPressed(false)}
+            style={[
+              styles.statPill,
+              { backgroundColor: `${COLORS.textSecondary}20` },
+              statsPressed && styles.statPillPressed,
+            ]}
+          >
             <Text style={[styles.percentage, { color: COLORS.textSecondary }]}>
               {timeElapsedPercentage}% · {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left
             </Text>
-          </View>
+          </Pressable>
           {currentStreak > 0 && (
             <Text style={styles.streak}>
               {currentStreak} day{currentStreak !== 1 ? 's' : ''} streak
@@ -165,12 +198,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.sm,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.sm,
+  },
   name: {
     fontFamily: FONTS.display.bold,
     fontSize: FONT_SIZE.xxl,
     color: COLORS.textPrimary,
     letterSpacing: -0.5,
-    marginBottom: SPACING.sm,
+    flex: 1,
+  },
+  zoomPill: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.full,
+    marginLeft: SPACING.sm,
+    // Subtle neumorphic extruded effect
+    borderWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.8)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.8)',
+    borderBottomColor: 'rgba(163, 177, 198, 0.4)',
+    borderRightColor: 'rgba(163, 177, 198, 0.4)',
+  },
+  zoomPillPressed: {
+    borderTopColor: 'rgba(163, 177, 198, 0.4)',
+    borderLeftColor: 'rgba(163, 177, 198, 0.4)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.8)',
+    borderRightColor: 'rgba(255, 255, 255, 0.8)',
+    transform: [{ scale: 0.95 }],
+  },
+  zoomText: {
+    fontFamily: FONTS.body.medium,
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   stats: {
     flexDirection: 'row',
@@ -181,6 +247,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
     borderRadius: RADIUS.full,
+  },
+  statPillPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.97 }],
   },
   percentage: {
     fontFamily: FONTS.display.bold,

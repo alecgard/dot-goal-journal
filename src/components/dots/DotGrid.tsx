@@ -1,11 +1,12 @@
 import React, { memo, useMemo, useRef, useEffect, useCallback } from 'react';
-import { StyleSheet, useWindowDimensions, FlatList } from 'react-native';
+import { StyleSheet, FlatList, useWindowDimensions, View, Text } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { Goal } from '../../types';
 import { useDayStore } from '../../stores';
-import { getDateRange, isToday, isFuture, getTodayString } from '../../utils/dates';
-import { COLORS, DOT, SPACING } from '../../constants/theme';
+import { getDateRange, isToday, isFuture, getTodayString, fromDateString } from '../../utils/dates';
+import { COLORS, DOT, SPACING, FONT_SIZE, FONTS } from '../../constants/theme';
 import { Dot } from './Dot';
+import { format, startOfWeek } from 'date-fns';
 
 interface DotGridProps {
   goal: Goal;
@@ -24,23 +25,42 @@ interface DotData {
   index: number;
 }
 
+interface RowData {
+  mondayDate: string;
+  dots: DotData[];
+  rowIndex: number;
+}
+
 export const DotGrid = memo(function DotGrid({
   goal,
   onDotOpenModal,
   onDotComplete,
 }: DotGridProps) {
-  const { width } = useWindowDimensions();
   const flatListRef = useRef<FlatList>(null);
   const days = useDayStore((state) => state.days);
+  const { width: screenWidth } = useWindowDimensions();
 
   // Shared values for coordinating ripple animations across dots
   const rippleTriggerIndex = useSharedValue(-1);
   const rippleTriggerTime = useSharedValue(0);
 
-  // Calculate number of columns based on screen width
-  const dotTotalSize = DOT.size + DOT.spacing;
-  const availableWidth = width - SPACING.md * 2;
-  const numColumns = Math.floor(availableWidth / dotTotalSize);
+  // Fixed 7 columns (one for each day of the week) for alignment with week view
+  const numColumns = 7;
+
+  // Row label width for Monday dates (e.g., "Jan-05")
+  const rowLabelWidth = 48;
+
+  // Calculate dot size dynamically to fill the screen width
+  // Account for horizontal padding on the container and row label width
+  const horizontalPadding = SPACING.md * 2;
+  const availableWidth = screenWidth - horizontalPadding - rowLabelWidth;
+  // Each dot container includes the dot + spacing, calculate size based on available width
+  const dotTotalSize = Math.floor(availableWidth / numColumns);
+  // The actual dot size is the total size minus spacing
+  const dynamicDotSize = dotTotalSize - DOT.spacing;
+
+  // Day of week headers
+  const dayHeaders = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
   // Generate dot data
   const dots: DotData[] = useMemo(() => {
@@ -61,6 +81,26 @@ export const DotGrid = memo(function DotGrid({
       };
     });
   }, [goal.id, goal.startDate, goal.endDate, days]);
+
+  // Group dots into rows with Monday dates
+  const rows: RowData[] = useMemo(() => {
+    const result: RowData[] = [];
+    for (let i = 0; i < dots.length; i += numColumns) {
+      const rowDots = dots.slice(i, i + numColumns);
+      // Get the Monday of the week for this row
+      // The first dot in the row should be Monday (since we have 7 columns starting Monday)
+      const firstDotDate = fromDateString(rowDots[0].date);
+      const monday = startOfWeek(firstDotDate, { weekStartsOn: 1 });
+      const mondayFormatted = format(monday, 'MMM-dd');
+
+      result.push({
+        mondayDate: mondayFormatted,
+        dots: rowDots,
+        rowIndex: Math.floor(i / numColumns),
+      });
+    }
+    return result;
+  }, [dots, numColumns]);
 
   // Find today's index for auto-scroll
   const todayIndex = useMemo(() => {
@@ -92,53 +132,82 @@ export const DotGrid = memo(function DotGrid({
     [rippleTriggerIndex, rippleTriggerTime]
   );
 
-  const renderDot = useCallback(
-    ({ item }: { item: DotData }) => (
-      <Dot
-        date={item.date}
-        isCompleted={item.isCompleted}
-        isToday={item.isToday}
-        isFuture={item.isFuture}
-        isLastDay={item.isLastDay}
-        goalColor={COLORS.dotCompleted}
-        onOpenModal={() => onDotOpenModal(item.date)}
-        onComplete={() => onDotComplete(item.date)}
-        index={item.index}
-        numColumns={numColumns}
-        rippleTriggerIndex={rippleTriggerIndex}
-        rippleTriggerTime={rippleTriggerTime}
-        onTriggerRipple={createRippleTrigger(item.index)}
-      />
+  // Render header with day of week labels
+  const renderHeader = useCallback(
+    () => (
+      <View style={styles.headerRow}>
+        <View style={[styles.rowLabel, { width: rowLabelWidth }]} />
+        {dayHeaders.map((day, index) => (
+          <View
+            key={index}
+            style={[styles.headerCell, { width: dotTotalSize }]}
+          >
+            <Text style={styles.headerText}>{day}</Text>
+          </View>
+        ))}
+      </View>
     ),
-    [onDotOpenModal, onDotComplete, numColumns, rippleTriggerIndex, rippleTriggerTime, createRippleTrigger]
+    [dayHeaders, dotTotalSize, rowLabelWidth]
   );
 
-  const keyExtractor = useCallback((item: DotData) => item.date, []);
+  // Render a row with Monday label and dots
+  const renderRow = useCallback(
+    ({ item }: { item: RowData }) => (
+      <View style={styles.dataRow}>
+        <View style={[styles.rowLabel, { width: rowLabelWidth }]}>
+          <Text style={styles.rowLabelText}>{item.mondayDate}</Text>
+        </View>
+        <View style={styles.dotsContainer}>
+          {item.dots.map((dot) => (
+            <Dot
+              key={dot.date}
+              date={dot.date}
+              isCompleted={dot.isCompleted}
+              isToday={dot.isToday}
+              isFuture={dot.isFuture}
+              isLastDay={dot.isLastDay}
+              goalColor={COLORS.dotCompleted}
+              onOpenModal={() => onDotOpenModal(dot.date)}
+              onComplete={() => onDotComplete(dot.date)}
+              index={dot.index}
+              numColumns={numColumns}
+              rippleTriggerIndex={rippleTriggerIndex}
+              rippleTriggerTime={rippleTriggerTime}
+              onTriggerRipple={createRippleTrigger(dot.index)}
+              dotSize={dynamicDotSize}
+              dotTotalSize={dotTotalSize}
+            />
+          ))}
+        </View>
+      </View>
+    ),
+    [onDotOpenModal, onDotComplete, numColumns, rippleTriggerIndex, rippleTriggerTime, createRippleTrigger, dynamicDotSize, dotTotalSize, rowLabelWidth]
+  );
+
+  const keyExtractor = useCallback((item: RowData) => item.mondayDate + item.rowIndex, []);
 
   const getItemLayout = useCallback(
     (_: any, index: number) => ({
       length: dotTotalSize,
-      offset: Math.floor(index / numColumns) * dotTotalSize,
+      offset: index * dotTotalSize,
       index,
     }),
-    [numColumns, dotTotalSize]
+    [dotTotalSize]
   );
 
   return (
     <FlatList
       ref={flatListRef}
-      data={dots}
-      renderItem={renderDot}
+      data={rows}
+      renderItem={renderRow}
       keyExtractor={keyExtractor}
-      numColumns={numColumns}
-      key={numColumns} // Force re-render when columns change
+      ListHeaderComponent={renderHeader}
       getItemLayout={getItemLayout}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.container}
-      columnWrapperStyle={styles.row}
-      // Render all dots at once - no batching/virtualization
-      initialNumToRender={dots.length}
-      maxToRenderPerBatch={dots.length}
+      // Render all rows at once - no batching/virtualization
+      initialNumToRender={rows.length}
+      maxToRenderPerBatch={rows.length}
       windowSize={21}
       removeClippedSubviews={false}
     />
@@ -150,7 +219,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.xl,
   },
-  row: {
-    justifyContent: 'flex-start',
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
+  },
+  headerCell: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerText: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.body.medium,
+  },
+  dataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rowLabel: {
+    justifyContent: 'center',
+    paddingRight: SPACING.xs,
+  },
+  rowLabelText: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.body.regular,
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    flex: 1,
   },
 });

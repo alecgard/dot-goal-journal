@@ -42,6 +42,10 @@ interface DotProps {
   rippleTriggerTime?: SharedValue<number>;
   /** Callback to trigger ripple effect (called when this dot is completed) */
   onTriggerRipple?: () => void;
+  /** Dynamic dot size (optional, defaults to DOT.size) */
+  dotSize?: number;
+  /** Dynamic total size including spacing (optional, defaults to DOT.size + DOT.spacing) */
+  dotTotalSize?: number;
 }
 
 /**
@@ -82,7 +86,13 @@ export const Dot = memo(function Dot({
   rippleTriggerIndex,
   rippleTriggerTime,
   onTriggerRipple,
+  dotSize: propDotSize,
+  dotTotalSize: propDotTotalSize,
 }: DotProps) {
+  // Use dynamic sizes if provided, otherwise fall back to constants
+  const dotSize = propDotSize ?? DOT.size;
+  const dotTotalSize = propDotTotalSize ?? (DOT.size + DOT.spacing);
+  const dotBorderRadius = Math.min(dotSize * 0.3, DOT.borderRadius); // Scale border radius proportionally
   const scale = useSharedValue(1);
   const rippleScale = useSharedValue(0);
   const rippleOpacity = useSharedValue(0);
@@ -267,42 +277,92 @@ export const Dot = memo(function Dot({
     opacity: wave3Opacity.value,
   }));
 
+  // Dynamic styles based on dot size
+  const dynamicContainerStyle = {
+    width: dotTotalSize,
+    height: dotTotalSize,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  };
+
+  const dynamicDotStyle = {
+    width: dotSize,
+    height: dotSize,
+    borderRadius: dotBorderRadius,
+  };
+
+  const dynamicTodayRingStyle = {
+    position: 'absolute' as const,
+    width: dotSize + DOT.borderWidth * 2 + 4,
+    height: dotSize + DOT.borderWidth * 2 + 4,
+    borderRadius: dotBorderRadius + 4,
+    borderWidth: DOT.borderWidth,
+    borderColor: COLORS.dotToday,
+  };
+
+  const dynamicRippleStyle = {
+    position: 'absolute' as const,
+    width: dotSize,
+    height: dotSize,
+    borderRadius: dotBorderRadius,
+  };
+
+  const dynamicGlowStyle = {
+    position: 'absolute' as const,
+    width: dotSize,
+    height: dotSize,
+    borderRadius: dotBorderRadius,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 15,
+  };
+
+  const dynamicWaveRingStyle = {
+    position: 'absolute' as const,
+    width: dotSize,
+    height: dotSize,
+    borderRadius: dotBorderRadius,
+    borderWidth: 2,
+    backgroundColor: 'transparent' as const,
+  };
+
   // Determine dot appearance based on state
   const getDotStyle = () => {
     // Last day always shows in gold, regardless of state
     if (isLastDay) {
-      return [styles.dot, styles.dotCompleted, { backgroundColor: displayColor }];
+      return [dynamicDotStyle, styles.dotCompleted, { backgroundColor: displayColor }];
     }
     if (isCompleted) {
-      return [styles.dot, styles.dotCompleted, { backgroundColor: displayColor }];
+      return [dynamicDotStyle, styles.dotCompleted, { backgroundColor: displayColor }];
     }
     if (isFuture) {
-      return [styles.dot, styles.dotFuture];
+      return [dynamicDotStyle, styles.dotFuture];
     }
-    return [styles.dot, styles.dotMissed];
+    return [dynamicDotStyle, styles.dotMissed];
   };
 
   return (
     <GestureDetector gesture={tapGesture}>
-      <Animated.View style={[styles.container, animatedDotStyle]}>
+      <Animated.View style={[dynamicContainerStyle, animatedDotStyle]}>
         {/* Wave rings - expanding circular waves */}
         <Animated.View
           style={[
-            styles.waveRing,
+            dynamicWaveRingStyle,
             { borderColor: displayColor },
             animatedWave1Style,
           ]}
         />
         <Animated.View
           style={[
-            styles.waveRing,
+            dynamicWaveRingStyle,
             { borderColor: displayColor },
             animatedWave2Style,
           ]}
         />
         <Animated.View
           style={[
-            styles.waveRing,
+            dynamicWaveRingStyle,
             { borderColor: displayColor },
             animatedWave3Style,
           ]}
@@ -311,7 +371,7 @@ export const Dot = memo(function Dot({
         {/* Glow effect - bright flash on completion */}
         <Animated.View
           style={[
-            styles.glow,
+            dynamicGlowStyle,
             { backgroundColor: displayColor },
             animatedGlowStyle,
           ]}
@@ -320,7 +380,7 @@ export const Dot = memo(function Dot({
         {/* Ripple effect - solid expanding fill */}
         <Animated.View
           style={[
-            styles.ripple,
+            dynamicRippleStyle,
             { backgroundColor: displayColor },
             animatedRippleStyle,
           ]}
@@ -328,7 +388,7 @@ export const Dot = memo(function Dot({
 
         {/* Today indicator ring */}
         {isToday && (
-          <View style={styles.todayRing} />
+          <View style={dynamicTodayRingStyle} />
         )}
 
         {/* Main dot */}
@@ -339,17 +399,6 @@ export const Dot = memo(function Dot({
 });
 
 const styles = StyleSheet.create({
-  container: {
-    width: DOT.size + DOT.spacing,
-    height: DOT.size + DOT.spacing,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dot: {
-    width: DOT.size,
-    height: DOT.size,
-    borderRadius: DOT.borderRadius,
-  },
   // Completed: Extruded appearance with subtle shadow effect
   dotCompleted: {
     // Shadow simulation for raised effect
@@ -372,39 +421,5 @@ const styles = StyleSheet.create({
   // Missed: Flat, muted
   dotMissed: {
     backgroundColor: COLORS.dotMissed,
-  },
-  // Today ring
-  todayRing: {
-    position: 'absolute',
-    width: DOT.size + DOT.borderWidth * 2 + 4,
-    height: DOT.size + DOT.borderWidth * 2 + 4,
-    borderRadius: DOT.borderRadius + 4,
-    borderWidth: DOT.borderWidth,
-    borderColor: COLORS.dotToday,
-  },
-  ripple: {
-    position: 'absolute',
-    width: DOT.size,
-    height: DOT.size,
-    borderRadius: DOT.borderRadius,
-  },
-  glow: {
-    position: 'absolute',
-    width: DOT.size,
-    height: DOT.size,
-    borderRadius: DOT.borderRadius,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 15,
-  },
-  // Wave ring - expanding circular outline
-  waveRing: {
-    position: 'absolute',
-    width: DOT.size,
-    height: DOT.size,
-    borderRadius: DOT.borderRadius,
-    borderWidth: 2,
-    backgroundColor: 'transparent',
   },
 });
