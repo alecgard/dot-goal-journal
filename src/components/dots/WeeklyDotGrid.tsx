@@ -43,6 +43,7 @@ function groupIntoWeeks(
       isCompleted: entry?.isCompleted ?? false,
       isFuture: isFuture(date),
       isLastDay,
+      isToday: isToday(date),
     });
 
     // When we have 7 days or it's the last date, create a week

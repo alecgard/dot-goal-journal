@@ -18,6 +18,7 @@ export interface WeekDayData {
   isCompleted: boolean;
   isFuture: boolean;
   isLastDay?: boolean;
+  isToday?: boolean;
 }
 
 interface WeekDotProps {
@@ -121,14 +122,15 @@ export const WeekDot = memo(function WeekDot({
     const day = days[index];
     const color = getSegmentColor(day, goalColor);
     const path = getSegmentPath(index);
+    const isSegmentToday = day?.isToday ?? false;
 
     return (
       <Path
         key={index}
         d={path}
         fill={color}
-        stroke={COLORS.background}
-        strokeWidth={0.5}
+        stroke={isSegmentToday ? COLORS.dotToday : COLORS.background}
+        strokeWidth={isSegmentToday ? 1.5 : 0.5}
       />
     );
   });

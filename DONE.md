@@ -26,3 +26,5 @@
 - Day letters (M T W T F S S) at top of grid.
 - Monday dates (Jan-05) on left of each row.
 - Stats modal on % click with detailed statistics.
+- Fix day alignment bug (dots now align to correct day column).
+- Orange highlight for today's segment in Week view.

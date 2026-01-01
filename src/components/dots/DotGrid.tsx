@@ -6,7 +6,7 @@ import { useDayStore } from '../../stores';
 import { getDateRange, isToday, isFuture, getTodayString, fromDateString } from '../../utils/dates';
 import { COLORS, DOT, SPACING, FONT_SIZE, FONTS } from '../../constants/theme';
 import { Dot } from './Dot';
-import { format, startOfWeek } from 'date-fns';
+import { format, startOfWeek, getDay } from 'date-fns';
 
 interface DotGridProps {
   goal: Goal;
@@ -23,6 +23,7 @@ interface DotData {
   isFuture: boolean;
   isLastDay: boolean;
   index: number;
+  isPlaceholder?: boolean;
 }
 
 interface RowData {
@@ -62,12 +63,35 @@ export const DotGrid = memo(function DotGrid({
   // Day of week headers
   const dayHeaders = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-  // Generate dot data
+  // Generate dot data with proper day-of-week alignment
   const dots: DotData[] = useMemo(() => {
     const dateRange = getDateRange(goal.startDate, goal.endDate);
     const lastIndex = dateRange.length - 1;
 
-    return dateRange.map((date, index) => {
+    // Calculate how many placeholder dots we need at the start to align to Monday
+    // getDay returns 0 for Sunday, 1 for Monday, etc.
+    // We want Monday = 0 placeholders, Tuesday = 1 placeholder, ..., Sunday = 6 placeholders
+    const firstDate = fromDateString(dateRange[0]);
+    const dayOfWeek = getDay(firstDate); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    // Convert to Monday-based: Monday = 0, Tuesday = 1, ..., Sunday = 6
+    const mondayBasedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+
+    // Create placeholder dots for alignment
+    const placeholders: DotData[] = [];
+    for (let i = 0; i < mondayBasedDay; i++) {
+      placeholders.push({
+        date: `placeholder-${i}`,
+        isCompleted: false,
+        isToday: false,
+        isFuture: false,
+        isLastDay: false,
+        index: -1,
+        isPlaceholder: true,
+      });
+    }
+
+    // Create actual dots
+    const actualDots = dateRange.map((date, index) => {
       const key = `${goal.id}_${date}`;
       const entry = days[key];
 
@@ -80,6 +104,8 @@ export const DotGrid = memo(function DotGrid({
         index,
       };
     });
+
+    return [...placeholders, ...actualDots];
   }, [goal.id, goal.startDate, goal.endDate, days]);
 
   // Group dots into rows with Monday dates
@@ -87,10 +113,12 @@ export const DotGrid = memo(function DotGrid({
     const result: RowData[] = [];
     for (let i = 0; i < dots.length; i += numColumns) {
       const rowDots = dots.slice(i, i + numColumns);
-      // Get the Monday of the week for this row
-      // The first dot in the row should be Monday (since we have 7 columns starting Monday)
-      const firstDotDate = fromDateString(rowDots[0].date);
-      const monday = startOfWeek(firstDotDate, { weekStartsOn: 1 });
+      // Find the first non-placeholder dot to calculate the Monday date
+      const firstRealDot = rowDots.find((dot) => !dot.isPlaceholder);
+      if (!firstRealDot) continue; // Skip if all placeholders (shouldn't happen)
+
+      const firstRealDate = fromDateString(firstRealDot.date);
+      const monday = startOfWeek(firstRealDate, { weekStartsOn: 1 });
       const mondayFormatted = format(monday, 'MMM-dd');
 
       result.push({
@@ -158,26 +186,33 @@ export const DotGrid = memo(function DotGrid({
           <Text style={styles.rowLabelText}>{item.mondayDate}</Text>
         </View>
         <View style={styles.dotsContainer}>
-          {item.dots.map((dot) => (
-            <Dot
-              key={dot.date}
-              date={dot.date}
-              isCompleted={dot.isCompleted}
-              isToday={dot.isToday}
-              isFuture={dot.isFuture}
-              isLastDay={dot.isLastDay}
-              goalColor={COLORS.dotCompleted}
-              onOpenModal={() => onDotOpenModal(dot.date)}
-              onComplete={() => onDotComplete(dot.date)}
-              index={dot.index}
-              numColumns={numColumns}
-              rippleTriggerIndex={rippleTriggerIndex}
-              rippleTriggerTime={rippleTriggerTime}
-              onTriggerRipple={createRippleTrigger(dot.index)}
-              dotSize={dynamicDotSize}
-              dotTotalSize={dotTotalSize}
-            />
-          ))}
+          {item.dots.map((dot) =>
+            dot.isPlaceholder ? (
+              <View
+                key={dot.date}
+                style={{ width: dotTotalSize, height: dotTotalSize }}
+              />
+            ) : (
+              <Dot
+                key={dot.date}
+                date={dot.date}
+                isCompleted={dot.isCompleted}
+                isToday={dot.isToday}
+                isFuture={dot.isFuture}
+                isLastDay={dot.isLastDay}
+                goalColor={COLORS.dotCompleted}
+                onOpenModal={() => onDotOpenModal(dot.date)}
+                onComplete={() => onDotComplete(dot.date)}
+                index={dot.index}
+                numColumns={numColumns}
+                rippleTriggerIndex={rippleTriggerIndex}
+                rippleTriggerTime={rippleTriggerTime}
+                onTriggerRipple={createRippleTrigger(dot.index)}
+                dotSize={dynamicDotSize}
+                dotTotalSize={dotTotalSize}
+              />
+            )
+          )}
         </View>
       </View>
     ),
