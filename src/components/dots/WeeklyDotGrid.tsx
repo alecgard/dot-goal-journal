@@ -52,6 +52,16 @@ function calculateDotSize(): { dotSize: number; dotTotalSize: number } {
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /**
+ * Format a Date to YYYY-MM-DD using local timezone
+ */
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Get the Monday of the week containing the given date
  */
 function getMondayOfWeek(dateStr: string): string {
@@ -60,7 +70,7 @@ function getMondayOfWeek(dateStr: string): string {
   const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
   const monday = new Date(date);
   monday.setDate(diff);
-  return monday.toISOString().split('T')[0];
+  return formatLocalDate(monday);
 }
 
 /**
@@ -91,7 +101,7 @@ function getWeekOfMonth(mondayDateStr: string): { weekOfMonth: number; month: nu
   const firstOfMonth = new Date(year, month, 1);
 
   // Get the Monday of the week that contains the 1st of this month
-  const firstMondayStr = getMondayOfWeek(firstOfMonth.toISOString().split('T')[0]);
+  const firstMondayStr = getMondayOfWeek(formatLocalDate(firstOfMonth));
   const firstMonday = new Date(firstMondayStr + 'T00:00:00');
 
   // But we need to check if that first week's Thursday is actually in this month
@@ -133,7 +143,7 @@ function getWeekDates(mondayStr: string): string[] {
   for (let i = 0; i < 7; i++) {
     const date = new Date(monday);
     date.setDate(monday.getDate() + i);
-    dates.push(date.toISOString().split('T')[0]);
+    dates.push(formatLocalDate(date));
   }
   return dates;
 }
@@ -164,13 +174,14 @@ function groupIntoWeeks(
     const key = `${goalId}_${date}`;
     const entry = days[key];
     const isLastDay = date === lastDate;
+    const isTodayFlag = isToday(date);
 
     const dayData: WeekDayData = {
       date,
       isCompleted: entry?.isCompleted ?? false,
       isFuture: isFuture(date),
       isLastDay,
-      isToday: isToday(date),
+      isToday: isTodayFlag,
       isPlaceholder: false,
     };
 
@@ -186,13 +197,18 @@ function groupIntoWeeks(
     const dayMap = weekMap.get(monday)!;
     const weekDates = getWeekDates(monday);
 
+    // Get the month this week belongs to (based on Thursday)
+    const { weekOfMonth, month: weekMonth, year: weekYear } = getWeekOfMonth(monday);
+
     // Build array of 7 days, with placeholders for days outside goal range
+    // (Month-specific placeholders are applied later in adjustWeekForMonth)
     const weekDays: WeekDayData[] = [];
     for (let i = 0; i < 7; i++) {
       if (dayMap.has(i)) {
+        // Day is in goal range - show it
         weekDays.push(dayMap.get(i)!);
       } else {
-        // This day is outside the goal's date range - create placeholder
+        // Day is outside goal range - placeholder
         weekDays.push({
           date: weekDates[i],
           isCompleted: false,
@@ -204,15 +220,13 @@ function groupIntoWeeks(
       }
     }
 
-    // getWeekOfMonth now returns the month/year based on Thursday (majority rule)
-    const { weekOfMonth, month, year } = getWeekOfMonth(monday);
     weeks.push({
       id: `week-${monday}`,
-      weekNumber: weekOfMonth, // Week-of-month (0-5) based on Thursday's month
+      weekNumber: weekOfMonth,
       days: weekDays,
       startDate: monday,
-      month, // Month is now determined by Thursday, not Monday
-      year,  // Year is now determined by Thursday, not Monday
+      month: weekMonth,
+      year: weekYear,
     });
   });
 
@@ -266,26 +280,102 @@ function getAllMonths(startDate: string, endDate: string): { key: string; label:
 }
 
 /**
+ * Check if a week has any days in a given month
+ */
+function weekHasDaysInMonth(weekStartMonday: string, targetMonth: number, targetYear: number): boolean {
+  const weekDates = getWeekDates(weekStartMonday);
+  return weekDates.some(dateStr => {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.getMonth() === targetMonth && date.getFullYear() === targetYear;
+  });
+}
+
+/**
+ * Calculate week-of-month for a week relative to a specific month
+ * (may differ from the Thursday-based assignment for boundary weeks)
+ */
+function getWeekOfMonthForDisplay(weekStartMonday: string, targetMonth: number, targetYear: number): number {
+  // Get the first day of the target month
+  const firstOfMonth = new Date(targetYear, targetMonth, 1);
+  const firstMondayStr = getMondayOfWeek(formatLocalDate(firstOfMonth));
+  const firstMonday = new Date(firstMondayStr + 'T00:00:00');
+
+  const weekMonday = new Date(weekStartMonday + 'T00:00:00');
+  const diffTime = weekMonday.getTime() - firstMonday.getTime();
+  const diffWeeks = Math.round(diffTime / (7 * 24 * 60 * 60 * 1000));
+
+  return Math.max(0, diffWeeks); // Ensure non-negative
+}
+
+/**
+ * Create a copy of week data with days adjusted for display in a specific month
+ * Days not in the target month become placeholders
+ */
+function adjustWeekForMonth(week: WeekData, targetMonth: number, targetYear: number): WeekData {
+  const adjustedDays = week.days.map(day => {
+    const dayDate = new Date(day.date + 'T00:00:00');
+    const dayMonth = dayDate.getMonth();
+    const dayYear = dayDate.getFullYear();
+
+    // If day is not in the target month, make it a placeholder
+    if (dayMonth !== targetMonth || dayYear !== targetYear) {
+      return {
+        ...day,
+        isCompleted: false,
+        isFuture: false,
+        isLastDay: false,
+        isToday: false,
+        isPlaceholder: true,
+      };
+    }
+    return day;
+  });
+
+  return {
+    ...week,
+    days: adjustedDays,
+  };
+}
+
+/**
  * Organize weeks into a grid: months as rows, week-of-month as columns
+ * Weeks that span two months appear in BOTH months' rows
  */
 function organizeIntoGrid(
   weeks: WeekData[],
   weekColumnNumbers: number[],
   months: { key: string; label: string; month: number; year: number }[]
 ): MonthRowData[] {
-  // Create a map for quick week lookup by month+year+weekNumber
-  const weekByMonthAndWeekNum = new Map<string, WeekData>();
+  // Build a map: for each month, map weekOfMonth -> week data (adjusted for that month)
+  // A week can appear in multiple months if it spans month boundaries
+  const monthWeekMaps = new Map<string, Map<number, WeekData>>();
+
+  months.forEach(monthInfo => {
+    const monthKey = `${monthInfo.year}-${monthInfo.month}`;
+    monthWeekMaps.set(monthKey, new Map());
+  });
+
+  // For each week, add it to every month it has days in
   weeks.forEach(week => {
-    const key = `${week.year}-${week.month}-${week.weekNumber}`;
-    weekByMonthAndWeekNum.set(key, week);
+    months.forEach(monthInfo => {
+      if (weekHasDaysInMonth(week.startDate, monthInfo.month, monthInfo.year)) {
+        const monthKey = `${monthInfo.year}-${monthInfo.month}`;
+        const weekOfMonth = getWeekOfMonthForDisplay(week.startDate, monthInfo.month, monthInfo.year);
+        // Adjust the week's days for this specific month
+        const adjustedWeek = adjustWeekForMonth(week, monthInfo.month, monthInfo.year);
+        monthWeekMaps.get(monthKey)!.set(weekOfMonth, adjustedWeek);
+      }
+    });
   });
 
   return months.map(monthInfo => {
+    const monthKey = `${monthInfo.year}-${monthInfo.month}`;
+    const weekMap = monthWeekMaps.get(monthKey)!;
+
     // For each week column (1-based), find the corresponding week (0-based weekNumber)
     const weeksInRow: (WeekData | null)[] = weekColumnNumbers.map(colNum => {
       const weekOfMonth = colNum - 1; // Convert 1-based column to 0-based weekNumber
-      const key = `${monthInfo.year}-${monthInfo.month}-${weekOfMonth}`;
-      return weekByMonthAndWeekNum.get(key) || null;
+      return weekMap.get(weekOfMonth) || null;
     });
 
     return {
